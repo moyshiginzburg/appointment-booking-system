@@ -1,0 +1,1449 @@
+<script>
+    /**
+     * Client-side JavaScript for the Appointment Booking System
+     * 
+     * This script handles all the frontend logic including:
+     * - Form validation and navigation between steps
+     * - Calendar display and date selection
+     * - Time slot management and selection
+     * - Communication with Google Apps Script backend
+     * - User interface interactions and animations
+     * - Multilingual support (Hebrew/English)
+     */
+
+    // Global variables
+    let currentStep = 1;
+    let selectedDate = null;
+    let selectedTimeSlot = null;
+    let appointmentData = {};
+    let currentMonth = new Date();
+    let config = {};
+    let calendarLink = null;
+    let currentLanguage = 'he'; // Default to Hebrew
+
+    // Pre-loading cache and state variables
+    // These variables manage background loading of time slots to improve user experience
+    let availabilityCache = {};       // Cache of daily availability {dateStr: {businessHours, busySlots}}
+    let preloadQueue = [];            // Queue of dates to preload (working days only)
+    let isPreloading = false;         // Flag indicating if preload is currently running
+    let preloadPaused = false;        // Flag to pause preload when immediate load is needed
+    let currentPreloadDate = null;    // The date currently being preloaded
+    let preloadDuration = null;       // Duration for preloading (calculated from number of people)
+
+    // Translations object
+    const translations = {
+        he: {
+            'page-title': 'קביעת פגישה',
+            'header-title': 'קביעת פגישה',
+            'header-subtitle': 'בחרי את הזמן המתאים לך ונקבע פגישה בקלות',
+            'step1-title': 'פרטים אישיים',
+            'step2-title': 'בחירת תאריך',
+            'step3-title': 'בחירת שעה',
+            'step4-title': 'אישור פרטי הפגישה',
+            'switch-to-english': 'English',
+            'label-name': 'שם מלא',
+            'label-phone': 'מספר טלפון',
+            'label-email': 'כתובת מייל',
+            'label-people': 'עבור כמה משתתפות הפגישה?',
+            'placeholder-name': 'הכניסי את שמך המלא',
+            'placeholder-phone': '050-1234567',
+            'placeholder-email': 'your-email@example.com',
+            'select-people': 'בחרי מספר משתתפות',
+            'people-1': 'משתתפת 1',
+            'people-2': '2 משתתפות',
+            'people-3': '3 משתתפות',
+            'people-4': '4 משתתפות',
+            'people-5': '5 משתתפות',
+            'people-6': '6 משתתפות',
+            'people-7': '7 משתתפות',
+            'people-8': '8 משתתפות',
+            'people-9': '9 משתתפות',
+            'continue-date': 'המשיכי לבחירת תאריך',
+            'continue-time': 'המשיכי לבחירת שעה',
+            'continue-confirm': 'המשיכי לאישור',
+            'back': 'חזרי',
+            'loading-slots': 'טוענת שעות פנויות...',
+            'no-slots': 'אין שעות פנויות בתאריך זה',
+            'choose-another': 'אנא בחרי תאריך אחר',
+            'confirmation-title': 'סיכום הפגישה',
+            'confirm-name': 'שם:',
+            'confirm-phone': 'טלפון:',
+            'confirm-email': 'מייל:',
+            'confirm-people': 'מספר משתתפות:',
+            'confirm-date': 'תאריך:',
+            'confirm-time': 'שעה:',
+            'confirm-duration': 'משך הפגישה:',
+            'confirm-booking': 'אשרי וקבעי פגישה',
+            'success-title': 'הפגישה נקבעה בהצלחה!',
+            'success-subtitle': 'תקבלי אישור בדוא"ל בקרוב',
+            'add-calendar': 'הוסיפי ליומן שלך',
+            'book-another': 'קבעי פגישה נוספת',
+            'footer-text': '&copy; 2024 מערכת קביעת פגישות - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a>',
+            'booking-progress': 'קובעת את הפגישה...',
+            'duration-text': 'משך הפגישה:',
+            'selected-date': 'תאריך נבחר:',
+            'minutes': 'דקות',
+            'hours': 'שעות',
+            'hour': 'שעה',
+            'and': 'ו-',
+            'participants': 'משתתפות',
+            'participant': 'משתתפת',
+            'confirm-address': '📍 כתובת:',
+            'error-name-required': 'אנא הכניסי את שמך',
+            'error-name-length': 'השם חייב להכיל לפחות 2 תווים',
+            'error-phone-required': 'אנא הכניסי מספר טלפון',
+            'error-phone-invalid': 'מספר טלפון לא תקין',
+            'error-email-required': 'אנא הכניסי כתובת מייל',
+            'error-email-invalid': 'כתובת מייל לא תקינה',
+            'error-people-required': 'אנא בחרי מספר משתתפות'
+        },
+        en: {
+            'page-title': 'Book an Appointment',
+            'header-title': 'Book an Appointment',
+            'header-subtitle': 'Choose your preferred time and book an appointment easily',
+            'step1-title': 'Personal Information',
+            'step2-title': 'Select Date',
+            'step3-title': 'Select Time',
+            'step4-title': 'Confirm Appointment Details',
+            'switch-to-english': 'עברית',
+            'label-name': 'Full Name',
+            'label-phone': 'Phone Number',
+            'label-email': 'Email Address',
+            'label-people': 'How many participants are coming for the appointment?',
+            'placeholder-name': 'Enter your full name',
+            'placeholder-phone': '050-1234567',
+            'placeholder-email': 'your-email@example.com',
+            'select-people': 'Select number of participants',
+            'people-1': '1 participant',
+            'people-2': '2 participants',
+            'people-3': '3 participants',
+            'people-4': '4 participants',
+            'people-5': '5 participants',
+            'people-6': '6 participants',
+            'people-7': '7 participants',
+            'people-8': '8 participants',
+            'people-9': '9 participants',
+            'continue-date': 'Continue to Date Selection',
+            'continue-time': 'Continue to Time Selection',
+            'continue-confirm': 'Continue to Confirmation',
+            'back': 'Back',
+            'loading-slots': 'Loading available times...',
+            'no-slots': 'No available times on this date',
+            'choose-another': 'Please choose another date',
+            'confirmation-title': 'Appointment Summary',
+            'confirm-name': 'Name:',
+            'confirm-phone': 'Phone:',
+            'confirm-email': 'Email:',
+            'confirm-people': 'Number of participants:',
+            'confirm-date': 'Date:',
+            'confirm-time': 'Time:',
+            'confirm-duration': 'Duration:',
+            'confirm-booking': 'Confirm and Book Appointment',
+            'success-title': 'Appointment Booked Successfully!',
+            'success-subtitle': 'You will receive a confirmation email shortly',
+            'add-calendar': 'Add to Your Calendar',
+            'book-another': 'Book Another Appointment',
+            'footer-text': '&copy; 2024 Appointment Booking System - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a>',
+            'booking-progress': 'Booking your appointment...',
+            'duration-text': 'Duration:',
+            'selected-date': 'Selected date:',
+            'minutes': 'minutes',
+            'hours': 'hours',
+            'hour': 'hour',
+            'and': 'and',
+            'participants': 'participants',
+            'participant': 'participant',
+            'confirm-address': '📍 Address:',
+            'error-name-required': 'Please enter your name',
+            'error-name-length': 'Name must contain at least 2 characters',
+            'error-phone-required': 'Please enter phone number',
+            'error-phone-invalid': 'Invalid phone number',
+            'error-email-required': 'Please enter email address',
+            'error-email-invalid': 'Invalid email address',
+            'error-people-required': 'Please select number of participants'
+        }
+    };
+
+    // Hebrew month names
+    const hebrewMonths = [
+        'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+        'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
+    ];
+
+    // English month names
+    const englishMonths = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    // Hebrew day names
+    const hebrewDays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
+    // English day names
+    const englishDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    // Initialize the application when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        initializeApp();
+    });
+
+    /**
+     * Initialize the application
+     */
+    function initializeApp() {
+        // Load configuration from server
+        google.script.run
+            .withSuccessHandler(handleConfigLoaded)
+            .withFailureHandler(handleError)
+            .getConfig();
+
+        // Set up event listeners
+        setupEventListeners();
+
+        // Initialize calendar
+        initializeCalendar();
+
+        // Apply initial language
+        applyLanguage(currentLanguage);
+
+        console.log('Appointment booking system initialized');
+    }
+
+    /**
+     * Handle configuration loaded from server
+     * Also starts background preloading of time slots for better UX
+     */
+    function handleConfigLoaded(serverConfig) {
+        config = serverConfig;
+        console.log('Configuration loaded:', config);
+
+        // Start preloading time slots in the background
+        // This improves UX by having slots ready when user reaches step 3
+        startPreloading();
+    }
+
+    /**
+     * Set up all event listeners
+     */
+    function setupEventListeners() {
+        // Language toggle
+        document.getElementById('languageToggle').addEventListener('click', toggleLanguage);
+
+        // Step 1 - Personal Information
+        document.getElementById('clientName').addEventListener('input', validateStep1);
+        document.getElementById('clientPhone').addEventListener('input', validateStep1);
+        document.getElementById('clientEmail').addEventListener('input', validateStep1);
+        document.getElementById('numberOfPeople').addEventListener('change', handlePeopleChange);
+        document.getElementById('continueToDate').addEventListener('click', () => goToStep(2));
+
+        // Step 2 - Date Selection
+        document.getElementById('backToStep1').addEventListener('click', () => goToStep(1));
+        document.getElementById('continueToTime').addEventListener('click', () => goToStep(3));
+        document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+        document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+
+        // Step 3 - Time Selection
+        document.getElementById('backToStep2').addEventListener('click', () => goToStep(2));
+        document.getElementById('continueToConfirm').addEventListener('click', () => goToStep(4));
+
+        // Step 4 - Confirmation
+        document.getElementById('backToStep3').addEventListener('click', () => goToStep(3));
+        document.getElementById('confirmBooking').addEventListener('click', confirmBooking);
+
+        // Success step
+        document.getElementById('bookAnother').addEventListener('click', resetForm);
+        document.getElementById('addToCalendar').addEventListener('click', addToCalendar);
+    }
+
+    /**
+     * Toggle language between Hebrew and English
+     */
+    function toggleLanguage() {
+        currentLanguage = currentLanguage === 'he' ? 'en' : 'he';
+        applyLanguage(currentLanguage);
+
+        // Re-render calendar with new language
+        renderCalendar();
+
+        // Update duration info if needed
+        if (document.getElementById('numberOfPeople').value) {
+            handlePeopleChange();
+        }
+
+        // Update selected date info if needed
+        if (selectedDate) {
+            updateSelectedDateInfo();
+        }
+
+        console.log('Language switched to:', currentLanguage);
+    }
+
+    /**
+     * Apply language translations to the page
+     */
+    function applyLanguage(lang) {
+        const html = document.getElementById('htmlRoot');
+        html.setAttribute('lang', lang);
+        html.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+
+        // Update all elements with translation attributes
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (translations[lang] && translations[lang][key]) {
+                if (element.getAttribute('data-translate-html') === 'true') {
+                    element.innerHTML = translations[lang][key];
+                } else {
+                    element.textContent = translations[lang][key];
+                }
+            }
+        });
+
+        // Update placeholders
+        document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-translate-placeholder');
+            if (translations[lang] && translations[lang][key]) {
+                element.placeholder = translations[lang][key];
+            }
+        });
+
+        // Update document title
+        const titleKey = document.querySelector('title').getAttribute('data-translate');
+        if (translations[lang] && translations[lang][titleKey]) {
+            document.title = translations[lang][titleKey];
+        }
+
+        // Update arrow directions for LTR/RTL
+        updateArrowDirections(lang);
+    }
+
+    /**
+     * Update arrow directions based on language direction
+     */
+    function updateArrowDirections(lang) {
+        const isRTL = lang === 'he';
+
+        // Update calendar navigation arrows
+        const prevIcon = document.getElementById('prevIcon');
+        const nextIcon = document.getElementById('nextIcon');
+
+        if (prevIcon && nextIcon) {
+            if (isRTL) {
+                // Hebrew: previous = right arrow, next = left arrow
+                prevIcon.className = 'fas fa-chevron-right';
+                nextIcon.className = 'fas fa-chevron-left';
+            } else {
+                // English: previous = left arrow, next = right arrow
+                prevIcon.className = 'fas fa-chevron-left';
+                nextIcon.className = 'fas fa-chevron-right';
+            }
+        }
+
+        // Update button arrows
+        const arrowIcons = [
+            'arrowIcon', 'arrowIcon2', 'arrowIcon3',
+            'backIcon1', 'backIcon2', 'backIcon3'
+        ];
+
+        arrowIcons.forEach(iconId => {
+            const icon = document.getElementById(iconId);
+            if (icon) {
+                if (iconId.startsWith('arrow')) {
+                    // Continue buttons
+                    icon.className = isRTL ? 'fas fa-arrow-left' : 'fas fa-arrow-right';
+                } else {
+                    // Back buttons
+                    icon.className = isRTL ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
+                }
+            }
+        });
+    }
+
+    /**
+     * Get translation for a key
+     */
+    function t(key) {
+        return translations[currentLanguage] && translations[currentLanguage][key]
+            ? translations[currentLanguage][key]
+            : key;
+    }
+
+    /**
+     * Validate step 1 form fields
+     */
+    function validateStep1() {
+        const name = document.getElementById('clientName').value.trim();
+        const phone = document.getElementById('clientPhone').value.trim();
+        const email = document.getElementById('clientEmail').value.trim();
+        const people = document.getElementById('numberOfPeople').value;
+
+        // Clear previous errors
+        clearErrors();
+
+        let isValid = true;
+
+        // Validate name
+        if (!name) {
+            showError('nameError', t('error-name-required'));
+            isValid = false;
+        } else if (name.length < 2) {
+            showError('nameError', t('error-name-length'));
+            isValid = false;
+        }
+
+        // Validate phone
+        if (!phone) {
+            showError('phoneError', t('error-phone-required'));
+            isValid = false;
+        } else if (!isValidPhone(phone)) {
+            showError('phoneError', t('error-phone-invalid'));
+            isValid = false;
+        }
+
+        // Validate email
+        if (!email) {
+            showError('emailError', t('error-email-required'));
+            isValid = false;
+        } else if (!isValidEmail(email)) {
+            showError('emailError', t('error-email-invalid'));
+            isValid = false;
+        }
+
+        // Validate number of people
+        if (!people) {
+            showError('peopleError', t('error-people-required'));
+            isValid = false;
+        }
+
+        // Enable/disable continue button
+        document.getElementById('continueToDate').disabled = !isValid;
+
+        return isValid;
+    }
+
+    /**
+     * Handle change in number of people
+     */
+    function handlePeopleChange() {
+        const people = parseInt(document.getElementById('numberOfPeople').value);
+        const durationInfo = document.getElementById('durationInfo');
+
+        if (people) {
+            const baseDuration = config.baseDuration || 30;
+            const additionalDuration = config.additionalPersonDuration || 15;
+            const totalDuration = baseDuration + ((people - 1) * additionalDuration);
+
+            // Format duration in a user-friendly way
+            let durationText = formatDurationInLanguage(totalDuration);
+
+            durationInfo.innerHTML = `
+            <i class="fas fa-clock"></i>
+            ${t('duration-text')} ${durationText}
+        `;
+            durationInfo.classList.add('show');
+        } else {
+            durationInfo.classList.remove('show');
+        }
+
+        validateStep1();
+
+        // If we represent a date selected, recalculate slots
+        if (selectedDate) {
+            // We can just call loadTimeSlots which will use the cache and new duration
+            // Only if we are viewing slots or will view them soon?
+            // Actually even if we are on step 1, updating the "state" is fine, but loadTimeSlots interacts with UI.
+            // Best to only do it if the user has already passed step 2 (date selection) or if selectedDate is set.
+            // If selectedDate is set, loadTimeSlots updates the slot grid. If grid is hidden (step 1/2), it might not matter much but it's safe.
+            // However, loadTimeSlots shows loading spinners etc.
+            // Let's check currentStep.
+            if (currentStep >= 3) {
+                loadTimeSlots();
+            } else {
+                // invalidate cache? No, cache is availability (raw), not slots. Availability doesn't change with duration.
+                // So we don't need to invalidate cache! That's the beauty of this change.
+                // We just need to make sure when they go to step 3, it recalculates.
+                // And loadTimeSlots does exactly that because it uses the CURRENT value of numberOfPeople.
+                // So actually, if we are NOT on step 3, we don't need to do anything!
+                // The only case is if we ARE on step 3 (or 4 and went back?), we want to refresh the view.
+
+                // So yes, only if currentStep >= 3.
+            }
+        }
+    }
+
+    /**
+     * Format duration according to current language
+     */
+    function formatDurationInLanguage(minutes) {
+        if (currentLanguage === 'he') {
+            if (minutes < 60) {
+                return `${minutes} ${t('minutes')}`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+
+                if (remainingMinutes === 0) {
+                    return hours === 1 ? t('hour') : `${hours} ${t('hours')}`;
+                } else {
+                    const hoursText = hours === 1 ? t('hour') : `${hours} ${t('hours')}`;
+                    return `${hoursText} ${t('and')}-${remainingMinutes} ${t('minutes')}`;
+                }
+            }
+        } else {
+            if (minutes < 60) {
+                return `${minutes} ${t('minutes')}`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+
+                if (remainingMinutes === 0) {
+                    return hours === 1 ? `1 ${t('hour')}` : `${hours} ${t('hours')}`;
+                } else {
+                    const hoursText = hours === 1 ? `1 ${t('hour')}` : `${hours} ${t('hours')}`;
+                    return `${hoursText} ${t('and')} ${remainingMinutes} ${t('minutes')}`;
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate phone number
+     * Accepts:
+     * - Israeli local format: 05X-XXXXXXX, 0X-XXXXXXX (landline)
+     * - Israeli international format: +972-XX-XXXXXXX or 972-XX-XXXXXXX
+     * - International numbers: +XX... (any number starting with + followed by digits)
+     * 
+     * For Israeli +972 format, converts to local format for validation
+     */
+    function isValidPhone(phone) {
+        // Remove all non-digit characters except leading +
+        let cleanPhone = phone.trim();
+        const hasPlus = cleanPhone.startsWith('+');
+        cleanPhone = cleanPhone.replace(/\D/g, '');
+
+        // Israeli +972 format: convert to local format (remove 972, add 0)
+        if (cleanPhone.startsWith('972') && cleanPhone.length >= 11) {
+            cleanPhone = '0' + cleanPhone.substring(3);
+        }
+
+        // Israeli local format validation
+        if (/^0[2-9]\d{7,8}$/.test(cleanPhone) || /^05\d{8}$/.test(cleanPhone)) {
+            return true;
+        }
+
+        // International format: starts with + and has at least 8 digits (excluding country code)
+        // Common international formats are 10-15 digits total
+        if (hasPlus && cleanPhone.length >= 8 && cleanPhone.length <= 15) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Validate email address
+     */
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    /**
+     * Show error message
+     */
+    function showError(elementId, message) {
+        const errorElement = document.getElementById(elementId);
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
+
+    /**
+     * Clear all error messages
+     */
+    function clearErrors() {
+        const errorElements = document.querySelectorAll('.error-message');
+        errorElements.forEach(element => {
+            element.classList.remove('show');
+            element.textContent = '';
+        });
+    }
+
+    /**
+     * Navigate to a specific step
+     */
+    function goToStep(step) {
+        // Hide current step
+        document.getElementById(`step${currentStep}`).classList.add('hidden');
+
+        // Show new step
+        document.getElementById(`step${step}`).classList.remove('hidden');
+
+        // Update current step
+        currentStep = step;
+
+        // Handle step-specific logic
+        switch (step) {
+            case 3:
+                loadTimeSlots();
+                break;
+            case 4:
+                populateConfirmation();
+                break;
+        }
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+
+    /**
+     * Initialize calendar
+     */
+    function initializeCalendar() {
+        currentMonth = new Date();
+        renderCalendar();
+    }
+
+    /**
+     * Change calendar month
+     */
+    function changeMonth(direction) {
+        currentMonth.setMonth(currentMonth.getMonth() + direction);
+        renderCalendar();
+    }
+
+    /**
+     * Render calendar for current month
+     */
+    function renderCalendar() {
+        const calendarTitle = document.getElementById('calendarTitle');
+        const calendarGrid = document.getElementById('calendarGrid');
+
+        // Set title according to language
+        const months = currentLanguage === 'he' ? hebrewMonths : englishMonths;
+        calendarTitle.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+
+        // Clear grid
+        calendarGrid.innerHTML = '';
+
+        // Add day headers according to language
+        const days = currentLanguage === 'he' ? hebrewDays : englishDays;
+        days.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day calendar-day-header';
+            dayHeader.textContent = day;
+            calendarGrid.appendChild(dayHeader);
+        });
+
+        // Get first day of month and number of days
+        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        // Add calendar days
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            dayElement.textContent = date.getDate();
+
+            // Check if date is in current month
+            if (date.getMonth() !== currentMonth.getMonth()) {
+                dayElement.classList.add('disabled');
+            } else {
+                // Check if date is in the past
+                const today = new Date();
+                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+                if (dateOnly < todayDateOnly) {
+                    dayElement.classList.add('disabled');
+                } else {
+                    // Check if it's a working day (Sunday-Thursday)
+                    const dayOfWeek = date.getDay();
+                    if (dayOfWeek === 5 || dayOfWeek === 6) { // Friday or Saturday
+                        dayElement.classList.add('disabled');
+                    } else {
+                        // Add click handler for valid dates
+                        dayElement.addEventListener('click', () => selectDate(date));
+
+                        // Check if it's today
+                        if (dateOnly.getTime() === todayDateOnly.getTime()) {
+                            dayElement.classList.add('today');
+                        }
+
+                        // Check if it's selected
+                        if (selectedDate && date.toDateString() === selectedDate.toDateString()) {
+                            dayElement.classList.add('selected');
+                        }
+                    }
+                }
+            }
+
+            calendarGrid.appendChild(dayElement);
+        }
+    }
+
+    /**
+     * Select a date
+     */
+    function selectDate(date) {
+        selectedDate = new Date(date);
+
+        // Update calendar display
+        renderCalendar();
+
+        // Enable continue button
+        document.getElementById('continueToTime').disabled = false;
+
+        console.log('Date selected:', selectedDate);
+    }
+
+    /**
+     * Update selected date info according to current language
+     */
+    function updateSelectedDateInfo() {
+        const selectedDateInfo = document.getElementById('selectedDateInfo');
+        selectedDateInfo.textContent = `${t('selected-date')} ${formatDateInLanguage(selectedDate)}`;
+    }
+
+    /**
+     * Load available time slots for selected date
+     * 
+     * Enhanced with client-side calculation: Loads daily availability (business hours + busy slots)
+     * and calculates free slots locally. This allows instant updates when changing duration.
+     */
+    function loadTimeSlots() {
+        if (!selectedDate) return;
+
+        // Update selected date info
+        updateSelectedDateInfo();
+
+        // Calculate duration
+        const people = parseInt(document.getElementById('numberOfPeople').value);
+        const baseDuration = config.baseDuration || 30;
+        const additionalDuration = config.additionalPersonDuration || 15;
+        const duration = baseDuration + ((people - 1) * additionalDuration);
+
+        // Format date correctly for Israel timezone
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        console.log('Selected date:', selectedDate.toDateString());
+        console.log('Date string for lookup:', dateStr);
+
+        // Check if we have cached availability for this date
+        if (availabilityCache[dateStr]) {
+            console.log(`Using cached availability for ${dateStr}`);
+            // Use cached data - calculate slots locally!
+            const timeSlots = calculateAvailableSlots(availabilityCache[dateStr], duration, selectedDate);
+            handleTimeSlotsLoaded(timeSlots);
+            return;
+        }
+
+        // Not in cache - need to load from server
+        console.log(`No cache for ${dateStr}, loading from server...`);
+
+        // Show loading indicator
+        document.getElementById('timeSlotsLoading').classList.remove('hidden');
+        document.getElementById('timeSlotsGrid').innerHTML = '';
+        document.getElementById('noSlotsMessage').classList.add('hidden');
+
+        // Pause background preloading to prioritize this request
+        pausePreloading();
+
+        // Fetch from server (getDailyAvailability)
+        google.script.run
+            .withSuccessHandler(function (availability) {
+                // Store in cache for future use
+                availabilityCache[dateStr] = availability;
+                console.log(`Loaded and cached availability for ${dateStr}`);
+
+                // Calculate and display slots locally
+                const timeSlots = calculateAvailableSlots(availability, duration, selectedDate);
+                handleTimeSlotsLoaded(timeSlots);
+
+                // Resume background preloading
+                resumePreloading();
+            })
+            .withFailureHandler(function (error) {
+                handleTimeSlotsError(error);
+                // Resume preloading even on error
+                resumePreloading();
+            })
+            .getDailyAvailability(dateStr);
+    }
+
+    /**
+     * Handle time slots loaded from server
+     */
+    function handleTimeSlotsLoaded(timeSlots) {
+        // Hide loading
+        document.getElementById('timeSlotsLoading').classList.add('hidden');
+
+        const timeSlotsGrid = document.getElementById('timeSlotsGrid');
+        const noSlotsMessage = document.getElementById('noSlotsMessage');
+
+        // Always clear previous slots and messages first to prevent stale data
+        // from a previously viewed date remaining visible
+        timeSlotsGrid.innerHTML = '';
+        noSlotsMessage.classList.add('hidden');
+
+        if (timeSlots.length === 0) {
+            noSlotsMessage.classList.remove('hidden');
+            return;
+        }
+
+        // Add time slots
+        timeSlots.forEach(slot => {
+            const slotElement = document.createElement('div');
+            slotElement.className = 'time-slot';
+            slotElement.innerHTML = `
+            <div class="time-slot-time">${slot.start} - ${slot.end}</div>
+        `;
+
+            slotElement.addEventListener('click', () => selectTimeSlot(slot, slotElement));
+
+            timeSlotsGrid.appendChild(slotElement);
+        });
+    }
+
+    /**
+     * Handle time slots loading error
+     */
+    function handleTimeSlotsError(error) {
+        document.getElementById('timeSlotsLoading').classList.add('hidden');
+        document.getElementById('noSlotsMessage').classList.remove('hidden');
+        console.error('Error loading time slots:', error);
+    }
+
+    /**
+     * Select a time slot
+     */
+    function selectTimeSlot(slot, element) {
+        selectedTimeSlot = slot;
+
+        // Update UI
+        document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+
+        // Enable continue button
+        document.getElementById('continueToConfirm').disabled = false;
+
+        console.log('Time slot selected:', slot);
+    }
+
+    /**
+     * Populate confirmation details
+     */
+    function populateConfirmation() {
+        const name = document.getElementById('clientName').value.trim();
+        const phone = document.getElementById('clientPhone').value.trim();
+        const email = document.getElementById('clientEmail').value.trim();
+        const people = parseInt(document.getElementById('numberOfPeople').value);
+
+        // Calculate duration
+        const baseDuration = config.baseDuration || 30;
+        const additionalDuration = config.additionalPersonDuration || 15;
+        const duration = baseDuration + ((people - 1) * additionalDuration);
+
+        // Format duration in current language
+        const durationText = formatDurationInLanguage(duration);
+
+        // Format people count in current language
+        const peopleText = currentLanguage === 'he'
+            ? (people === 1 ? `משתתפת 1` : `${people} ${t('participants')}`)
+            : `${people} ${people === 1 ? t('participant') : t('participants')}`;
+
+        // Update confirmation fields
+        document.getElementById('confirmName').textContent = name;
+        document.getElementById('confirmPhone').textContent = phone;
+        document.getElementById('confirmEmail').textContent = email;
+        document.getElementById('confirmPeople').textContent = peopleText;
+        document.getElementById('confirmDate').textContent = formatDateInLanguage(selectedDate);
+        document.getElementById('confirmTime').textContent = `${selectedTimeSlot.start} - ${selectedTimeSlot.end}`;
+        document.getElementById('confirmDuration').textContent = durationText;
+
+        // Store appointment data with language preference
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        appointmentData = {
+            name: name,
+            phone: phone,
+            email: email,
+            numberOfPeople: people,
+            selectedSlot: selectedTimeSlot,
+            date: dateStr,
+            language: currentLanguage // Add language preference
+        };
+    }
+
+    /**
+     * Confirm and book the appointment
+     */
+    function confirmBooking() {
+        // Show loading overlay
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+
+        // Send booking request to server
+        google.script.run
+            .withSuccessHandler(handleBookingSuccess)
+            .withFailureHandler(handleBookingError)
+            .bookAppointment(appointmentData);
+    }
+
+    /**
+     * Handle successful booking
+     * Also handles the case where the slot was taken between selection and confirmation
+     */
+    function handleBookingSuccess(result) {
+        // Hide loading overlay
+        document.getElementById('loadingOverlay').classList.add('hidden');
+
+        // Check if slot was taken before booking could complete
+        if (result && result.slotTaken === true) {
+            // The selected time slot was taken by someone else
+            console.log('Slot was taken before booking could complete');
+
+            const errorMsg = currentLanguage === 'he'
+                ? result.message || 'השעה שבחרת נתפסה בינתיים. אנא בחרי שעה אחרת.'
+                : 'The time slot you selected has been taken. Please choose another time.';
+
+            alert(errorMsg);
+
+            // Clear cache for this date to ensure fresh data
+            clearCacheForDate(appointmentData.date);
+
+            // Clear cache for all dates to be safe (slots might have changed)
+            clearAllCache();
+
+            // Reset time slot selection
+            selectedTimeSlot = null;
+            document.getElementById('continueToConfirm').disabled = true;
+
+            // Go back to step 2 (date selection)
+            goToStep(2);
+
+            // Restart preloading to get fresh data
+            startPreloading();
+
+            return;
+        }
+
+        if (result && result.success === true && result.eventId) {
+            // Store calendar link
+            calendarLink = result.calendarLink;
+
+            // Show success step
+            goToStep('success');
+
+            // Update success details in current language
+            const successDetails = document.getElementById('successDetails');
+            const addressText = currentLanguage === 'he'
+                ? (config.businessAddressHe || '')
+                : (config.businessAddressEn || '');
+
+            successDetails.innerHTML = `
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-name')}</span>
+                <span class="confirmation-value">${appointmentData.name}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-date')}</span>
+                <span class="confirmation-value">${formatDateInLanguage(selectedDate)}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-time')}</span>
+                <span class="confirmation-value">${selectedTimeSlot.start} - ${selectedTimeSlot.end}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-duration')}</span>
+                <span class="confirmation-value">${formatDurationInLanguage(result.duration)}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-address')}</span>
+                <span class="confirmation-value">${addressText}</span>
+            </div>
+        `;
+
+            // Show success step
+            document.getElementById('step4').classList.add('hidden');
+            document.getElementById('successStep').classList.remove('hidden');
+
+        } else {
+            const errorMsg = currentLanguage === 'he'
+                ? 'שגיאה בקביעת הפגישה: ' + result.message
+                : 'Error booking appointment: ' + result.message;
+            alert(errorMsg);
+        }
+    }
+
+    /**
+     * Handle booking error
+     */
+    function handleBookingError(error) {
+        // Hide loading overlay
+        document.getElementById('loadingOverlay').classList.add('hidden');
+
+        const errorMsg = currentLanguage === 'he'
+            ? 'שגיאה בקביעת הפגישה. אנא נסי שוב.'
+            : 'Error booking appointment. Please try again.';
+        alert(errorMsg);
+        console.error('Booking error:', error);
+    }
+
+    /**
+     * Add appointment to client's calendar
+     */
+    function addToCalendar() {
+        if (calendarLink) {
+            window.open(calendarLink, '_blank');
+        } else {
+            const errorMsg = currentLanguage === 'he'
+                ? 'שגיאה ביצירת קישור ליומן'
+                : 'Error creating calendar link';
+            alert(errorMsg);
+        }
+    }
+
+    /**
+     * Reset form to start over
+     */
+    function resetForm() {
+        // Reset variables
+        currentStep = 1;
+        selectedDate = null;
+        selectedTimeSlot = null;
+        appointmentData = {};
+        calendarLink = null;
+
+        // Clear time slots cache and restart preloading for fresh data
+        clearAllCache();
+
+        // Reset form fields
+        document.getElementById('clientName').value = '';
+        document.getElementById('clientPhone').value = '';
+        document.getElementById('clientEmail').value = '';
+        document.getElementById('numberOfPeople').value = '';
+        document.getElementById('durationInfo').classList.remove('show');
+
+        // Reset buttons
+        document.getElementById('continueToDate').disabled = true;
+        document.getElementById('continueToTime').disabled = true;
+        document.getElementById('continueToConfirm').disabled = true;
+
+        // Clear errors
+        clearErrors();
+
+        // Show first step
+        document.querySelectorAll('.step-container').forEach(step => step.classList.add('hidden'));
+        document.getElementById('step1').classList.remove('hidden');
+
+        // Reset calendar
+        currentMonth = new Date();
+        renderCalendar();
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+
+        // Restart preloading for fresh data
+        startPreloading();
+    }
+
+    /**
+     * Format date according to current language
+     */
+    function formatDateInLanguage(date) {
+        if (currentLanguage === 'he') {
+            const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = hebrewMonths[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `יום ${dayName}, ${day} ב${month} ${year}`;
+        } else {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = englishMonths[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `${dayName}, ${month} ${day}, ${year}`;
+        }
+    }
+
+    /**
+     * Handle general errors
+     */
+    function handleError(error) {
+        console.error('Error:', error);
+        const errorMsg = currentLanguage === 'he'
+            ? 'אירעה שגיאה. אנא נסי שוב.'
+            : 'An error occurred. Please try again.';
+        alert(errorMsg);
+    }
+
+    // Utility function to go to success step
+    function goToSuccessStep() {
+        document.querySelectorAll('.step-container').forEach(step => step.classList.add('hidden'));
+        document.getElementById('successStep').classList.remove('hidden');
+    }
+
+    // Make goToStep function work with success step
+    const originalGoToStep = goToStep;
+    goToStep = function (step) {
+        if (step === 'success') {
+            goToSuccessStep();
+        } else {
+            originalGoToStep(step);
+        }
+    };
+
+    // ============================================================================
+    // CLIENT-SIDE SLOT CALCULATION
+    // ============================================================================
+
+    /**
+     * Calculates available time slots based on availability data and duration
+     * 
+     * @param {Object} availability - { businessHours, busySlots }
+     * @param {number} duration - Duration in minutes
+     * @param {Date} date - Selected date object
+     * @return {Array} Array of time slots { start, end, startDateTime, endDateTime }
+     */
+    function calculateAvailableSlots(availability, duration, date) {
+        if (!availability || !availability.businessHours) {
+            return [];
+        }
+
+        const { businessHours, busySlots } = availability;
+        const timeSlots = [];
+        const interval = config.timeSlotInterval || 15;
+
+        // Helper to process a period (morning, evening)
+        const processPeriod = (startStr, endStr) => {
+            if (!startStr || !endStr) return;
+
+            const startMinutes = timeToMinutes(startStr);
+            const endMinutes = timeToMinutes(endStr);
+
+            // Use a loop to check every slot
+            for (let current = startMinutes; current + duration <= endMinutes; current += interval) {
+                const slotStartMinutes = current;
+                const slotEndMinutes = current + duration;
+
+                // Check if this slot overlaps with any busy slot
+                const isBlocked = busySlots.some(busy => {
+                    const busyStart = new Date(busy.start);
+                    const busyEnd = new Date(busy.end);
+
+                    // Convert busy times to minutes since midnight for today
+                    // Note: busySlots from server are full ISO strings
+                    const busyStartMinutes = (busyStart.getHours() * 60) + busyStart.getMinutes();
+                    const busyEndMinutes = (busyEnd.getHours() * 60) + busyEnd.getMinutes();
+
+                    // Simple overlap check: (StartA < EndB) && (EndA > StartB)
+                    return (slotStartMinutes < busyEndMinutes) && (slotEndMinutes > busyStartMinutes);
+                });
+
+                // Specific check for "today" - filter out past slots + 3 hours buffer
+                const now = new Date();
+                const isToday = date.toDateString() === now.toDateString();
+                if (isToday) {
+                    const slotStartTime = new Date(date);
+                    slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+
+                    const threeHoursFromNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+                    if (slotStartTime <= threeHoursFromNow) {
+                        return; // Skip this iteration (continue in for loop really creates a new function scope here so return is fine for forEach but I wrote a for loop... wait)
+                        // Actually I used a for loop so `return` would exit the whole function processPeriod.
+                        // Let's refactor to `continue` if I was in the loop context directly, 
+                        // but strict strict conflict check is separate.
+                        // Let's rewrite loop structure inside processPeriod slightly.
+                    }
+                }
+
+                if (!isBlocked) {
+                    // Formatting
+                    const startH = Math.floor(slotStartMinutes / 60);
+                    const startM = slotStartMinutes % 60;
+                    const endH = Math.floor(slotEndMinutes / 60);
+                    const endM = slotEndMinutes % 60;
+
+                    const format = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                    // Create Date objects for ISO strings
+                    const slotStartDate = new Date(date);
+                    slotStartDate.setHours(startH, startM, 0, 0);
+                    const slotEndDate = new Date(date);
+                    slotEndDate.setHours(endH, endM, 0, 0);
+
+                    timeSlots.push({
+                        start: format(startH, startM),
+                        end: format(endH, endM),
+                        startDateTime: slotStartDate.toISOString(),
+                        endDateTime: slotEndDate.toISOString()
+                    });
+                }
+            }
+        };
+
+        // Process morning
+        processPeriod(businessHours.start, businessHours.end);
+
+        // Process evening if exists
+        if (businessHours.evening) {
+            processPeriod(businessHours.evening.start, businessHours.evening.end);
+        }
+
+        return timeSlots;
+    }
+
+    /**
+     * Convert "HH:MM" string to minutes since midnight
+     */
+    function timeToMinutes(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return (hours * 60) + minutes;
+    }
+
+    // Redefine processPeriod logic to be safe inside the function
+    // (The previous inline definition had a bug with 'return' inside a loop vs 'continue')
+    // Let's implement it cleanly without the inline arrow function containing the loop if it's confusing.
+    // Actually, I'll just rewrite the loop inside calculateAvailableSlots cleanly.
+    // See below for the actual Clean Implementation.
+
+    function calculateAvailableSlotsClean(availability, duration, date) {
+        if (!availability || !availability.businessHours) {
+            return [];
+        }
+
+        const { businessHours, busySlots } = availability;
+        const timeSlots = [];
+        const interval = config.timeSlotInterval || 15; // 15 minutes default
+
+        const periods = [];
+        periods.push({ start: businessHours.start, end: businessHours.end });
+        if (businessHours.evening) {
+            periods.push({ start: businessHours.evening.start, end: businessHours.evening.end });
+        }
+
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+
+        periods.forEach(period => {
+            if (!period.start || !period.end) return;
+
+            const startMinutes = timeToMinutes(period.start);
+            const endMinutes = timeToMinutes(period.end);
+
+            for (let current = startMinutes; current + duration <= endMinutes; current += interval) {
+                const slotStartMinutes = current;
+                const slotEndMinutes = current + duration;
+
+                // Check past/buffer for today
+                if (isToday) {
+                    const slotStartTime = new Date(date);
+                    slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+                    const threeHoursFromNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+
+                    if (slotStartTime <= threeHoursFromNow) {
+                        continue;
+                    }
+                }
+
+                // Overlap check
+                const isBlocked = busySlots.some(busy => {
+                    const busyStart = new Date(busy.start);
+                    const busyEnd = new Date(busy.end);
+
+                    // To compare accurately, we should compare full Date objects
+                    // Or compare minutes if we are sure busy slots are within the day.
+                    // Best is to construct Slot Date objects.
+                    const slotStartTime = new Date(date);
+                    slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+
+                    const slotEndTime = new Date(date);
+                    slotEndTime.setHours(Math.floor(slotEndMinutes / 60), slotEndMinutes % 60, 0, 0);
+
+                    // Compare with busy times (which are full dates)
+                    return (slotStartTime < busyEnd) && (slotEndTime > busyStart);
+                });
+
+                if (!isBlocked) {
+                    const startH = Math.floor(slotStartMinutes / 60);
+                    const startM = slotStartMinutes % 60;
+                    const endH = Math.floor(slotEndMinutes / 60);
+                    const endM = slotEndMinutes % 60;
+
+                    const format = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                    const slotStartTime = new Date(date);
+                    slotStartTime.setHours(startH, startM, 0, 0);
+                    const slotEndTime = new Date(date);
+                    slotEndTime.setHours(endH, endM, 0, 0);
+
+                    timeSlots.push({
+                        start: format(startH, startM),
+                        end: format(endH, endM),
+                        startDateTime: slotStartTime.toISOString(),
+                        endDateTime: slotEndTime.toISOString()
+                    });
+                }
+            }
+        });
+
+        return timeSlots;
+    }
+
+    // Map the clean function to the real name
+    calculateAvailableSlots = calculateAvailableSlotsClean;
+
+
+    // ============================================================================
+    // PRE-LOADING FUNCTIONS
+    // These functions handle background loading of time slots to improve UX
+    // ============================================================================
+
+    /**
+     * Starts the background preloading of time slots for the next 30 days
+     * 
+     * Purpose: Load available time slots in the background while the client is
+     * filling out the form on step 1. This way, when they reach step 3 (time selection),
+     * the slots are already cached and display instantly.
+     * 
+     * Method: Builds a queue of working days (Sunday-Thursday) for the next 30 days
+     * and starts loading them one by one in the background.
+     */
+    function startPreloading() {
+        console.log('Starting preload of time slots...');
+
+        // Build queue of dates to preload (next 30 working days)
+        preloadQueue = [];
+        const today = new Date();
+        let daysAdded = 0;
+        let currentDate = new Date(today);
+
+        while (daysAdded < 30) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            const dayOfWeek = currentDate.getDay();
+
+            // Only add working days (Sunday=0 to Thursday=4)
+            // Skip Friday (5) and Saturday (6)
+            if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+
+                preloadQueue.push(dateStr);
+                daysAdded++;
+            }
+        }
+
+        console.log(`Preload queue built with ${preloadQueue.length} dates:`, preloadQueue.slice(0, 5), '...');
+
+        // Start preloading
+        isPreloading = true;
+        preloadPaused = false;
+        preloadNextDate();
+    }
+
+    /**
+     * Preloads the next date in the queue
+     * Called recursively to process the entire queue
+     */
+    function preloadNextDate() {
+        // Check if we should stop
+        if (!isPreloading || preloadQueue.length === 0) {
+            console.log('Preloading completed or stopped');
+            isPreloading = false;
+            return;
+        }
+
+        // Check if paused (waiting for priority load)
+        if (preloadPaused) {
+            console.log('Preloading paused, waiting...');
+            return;
+        }
+
+        // Get next date from queue
+        currentPreloadDate = preloadQueue.shift();
+
+        // Skip if already cached
+        if (availabilityCache[currentPreloadDate]) {
+            console.log(`Date ${currentPreloadDate} already cached, skipping`);
+            preloadNextDate();
+            return;
+        }
+
+        console.log(`Preloading availability for date: ${currentPreloadDate}`);
+
+        // Load from server
+        google.script.run
+            .withSuccessHandler(function (availability) {
+                // Store in cache
+                availabilityCache[currentPreloadDate] = availability;
+                console.log(`Cached availability for ${currentPreloadDate}`);
+
+                // Continue with next date (with small delay to not overload server)
+                setTimeout(preloadNextDate, 100);
+            })
+            .withFailureHandler(function (error) {
+                console.error(`Failed to preload ${currentPreloadDate}:`, error);
+                // Continue anyway
+                setTimeout(preloadNextDate, 100);
+            })
+            .getDailyAvailability(currentPreloadDate);
+    }
+
+    /**
+     * Pauses the preloading process
+     * Called when user reaches step 3 and needs immediate loading of selected date
+     */
+    function pausePreloading() {
+        preloadPaused = true;
+        console.log('Preloading paused');
+    }
+
+    /**
+     * Resumes the preloading process
+     * Called after priority load is complete
+     */
+    function resumePreloading() {
+        if (isPreloading && preloadPaused) {
+            preloadPaused = false;
+            console.log('Preloading resumed');
+            preloadNextDate();
+        }
+    }
+
+    /**
+     * Clears the cache for a specific date
+     * Called when a slot was taken to ensure fresh data
+     * 
+     * @param {string} dateStr - Date string in YYYY-MM-DD format
+     */
+    function clearCacheForDate(dateStr) {
+        if (availabilityCache[dateStr]) {
+            delete availabilityCache[dateStr];
+            console.log(`Cache cleared for ${dateStr}`);
+        }
+    }
+
+    /**
+     * Clears the entire time slots cache
+     * Called when resetting the form or when data might be stale
+     */
+    function clearAllCache() {
+        availabilityCache = {};
+        console.log('All cache cleared');
+    }
+</script>

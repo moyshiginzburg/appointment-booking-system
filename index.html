@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he" id="htmlRoot">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate="page-title">קביעת פגישה</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <?!= include('style'); ?>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <i class="fas fa-calendar-check header-icon"></i>
+                <h1 class="header-title" data-translate="header-title">קביעת פגישה</h1>
+                <p class="header-subtitle" data-translate="header-subtitle">בחרי את הזמן המתאים לך ונקבע פגישה בקלות</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Step 1: Personal Information -->
+            <div class="step-container" id="step1">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">1</div>
+                        <h2 class="step-title" data-translate="step1-title">פרטים אישיים</h2>
+                    </div>
+                    <!-- Language Toggle Button -->
+                    <div class="language-toggle">
+                        <button type="button" class="btn-language" id="languageToggle">
+                            <i class="fas fa-globe"></i>
+                            <span data-translate="switch-to-english">English</span>
+                        </button>
+                    </div>
+                </div>
+
+                <form autocomplete="on">
+
+                    <div class="form-group">
+                        <label for="clientName" class="form-label">
+                            <i class="fas fa-user"></i>
+                            <span data-translate="label-name">שם מלא</span>
+                        </label>
+                        <input type="text" id="clientName" name="name" class="form-input"
+                            data-translate-placeholder="placeholder-name" placeholder="הכניסי את שמך המלא"
+                            autocomplete="name" required>
+                        <div class="error-message" id="nameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="clientPhone" class="form-label">
+                            <i class="fas fa-phone"></i>
+                            <span data-translate="label-phone">מספר טלפון</span>
+                        </label>
+                        <input type="tel" id="clientPhone" name="phone" class="form-input"
+                            data-translate-placeholder="placeholder-phone" placeholder="050-1234567" autocomplete="tel"
+                            required>
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="clientEmail" class="form-label">
+                            <i class="fas fa-envelope"></i>
+                            <span data-translate="label-email">כתובת מייל</span>
+                        </label>
+                        <input type="email" id="clientEmail" name="email" class="form-input"
+                            data-translate-placeholder="placeholder-email" placeholder="your-email@example.com"
+                            autocomplete="email" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numberOfPeople" class="form-label">
+                            <i class="fas fa-users"></i>
+                            <span data-translate="label-people">עבור כמה משתתפות הפגישה?</span>
+                        </label>
+                        <select id="numberOfPeople" class="form-select" required>
+                            <option value="" data-translate="select-people">בחרי מספר משתתפות</option>
+                            <option value="1" data-translate="people-1">משתתפת 1</option>
+                            <option value="2" data-translate="people-2">2 משתתפות</option>
+                            <option value="3" data-translate="people-3">3 משתתפות</option>
+                            <option value="4" data-translate="people-4">4 משתתפות</option>
+                            <option value="5" data-translate="people-5">5 משתתפות</option>
+                            <option value="6" data-translate="people-6">6 משתתפות</option>
+                            <option value="7" data-translate="people-7">7 משתתפות</option>
+                            <option value="8" data-translate="people-8">8 משתתפות</option>
+                            <option value="9" data-translate="people-9">9 משתתפות</option>
+                        </select>
+                        <div class="duration-info" id="durationInfo"></div>
+                        <div class="error-message" id="peopleError"></div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="continueToDate" disabled>
+                        <span data-translate="continue-date">המשיכי לבחירת תאריך</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 2: Date Selection -->
+            <div class="step-container hidden" id="step2">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">2</div>
+                        <h2 class="step-title" data-translate="step2-title">בחירת תאריך</h2>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button type="button" class="calendar-nav" id="prevMonth">
+                            <i class="fas fa-chevron-right" id="prevIcon"></i>
+                        </button>
+                        <h3 class="calendar-title" id="calendarTitle"></h3>
+                        <button type="button" class="calendar-nav" id="nextMonth">
+                            <i class="fas fa-chevron-left" id="nextIcon"></i>
+                        </button>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep1">
+                        <i class="fas fa-arrow-right" id="backIcon1"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="continueToTime" disabled>
+                        <span data-translate="continue-time">המשיכי לבחירת שעה</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Time Selection -->
+            <div class="step-container hidden" id="step3">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">3</div>
+                        <h2 class="step-title" data-translate="step3-title">בחירת שעה</h2>
+                    </div>
+                </div>
+
+                <div class="selected-date-info" id="selectedDateInfo"></div>
+
+                <div class="time-slots-container">
+                    <div class="loading" id="timeSlotsLoading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span data-translate="loading-slots">טוענת שעות פנויות...</span>
+                    </div>
+                    <div class="time-slots-grid" id="timeSlotsGrid"></div>
+                    <div class="no-slots-message hidden" id="noSlotsMessage">
+                        <i class="fas fa-calendar-times"></i>
+                        <p data-translate="no-slots">אין שעות פנויות בתאריך זה</p>
+                        <p data-translate="choose-another">אנא בחרי תאריך אחר</p>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep2">
+                        <i class="fas fa-arrow-right" id="backIcon2"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="continueToConfirm" disabled>
+                        <span data-translate="continue-confirm">המשיכי לאישור</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon3"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Confirmation -->
+            <div class="step-container hidden" id="step4">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">4</div>
+                        <h2 class="step-title" data-translate="step4-title">אישור פרטי הפגישה</h2>
+                    </div>
+                </div>
+
+                <div class="confirmation-details">
+                    <div class="confirmation-card">
+                        <h3 class="confirmation-title">
+                            <i class="fas fa-check-circle"></i>
+                            <span data-translate="confirmation-title">סיכום הפגישה</span>
+                        </h3>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-name">שם:</span>
+                            <span class="confirmation-value" id="confirmName"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-phone">טלפון:</span>
+                            <span class="confirmation-value" id="confirmPhone"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-email">מייל:</span>
+                            <span class="confirmation-value" id="confirmEmail"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-people">מספר משתתפות:</span>
+                            <span class="confirmation-value" id="confirmPeople"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-date">תאריך:</span>
+                            <span class="confirmation-value" id="confirmDate"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-time">שעה:</span>
+                            <span class="confirmation-value" id="confirmTime"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-duration">משך הפגישה:</span>
+                            <span class="confirmation-value" id="confirmDuration"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep3">
+                        <i class="fas fa-arrow-right" id="backIcon3"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-success" id="confirmBooking">
+                        <i class="fas fa-check"></i>
+                        <span data-translate="confirm-booking">אשרי וקבעי פגישה</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Success Message -->
+            <div class="step-container hidden" id="successStep">
+                <div class="success-message">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2 class="success-title" data-translate="success-title">הפגישה נקבעה בהצלחה!</h2>
+                    <p class="success-subtitle" data-translate="success-subtitle">תקבלי אישור בדוא"ל בקרוב</p>
+
+                    <div class="success-details" id="successDetails"></div>
+
+                    <div class="success-actions">
+                        <button type="button" class="btn btn-success" id="addToCalendar">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span data-translate="add-calendar">הוסיפי ליומן שלך</span>
+                        </button>
+                        <button type="button" class="btn btn-primary" id="bookAnother">
+                            <i class="fas fa-plus"></i>
+                            <span data-translate="book-another">קבעי פגישה נוספת</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p data-translate="footer-text" data-translate-html="true">&copy; 2024 מערכת קביעת פגישות - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a></p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p data-translate="booking-progress">קובעת את הפגישה...</p>
+        </div>
+    </div>
+
+    <?!= include('script'); ?>
+</body>
+
+</html>

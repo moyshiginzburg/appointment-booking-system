@@ -1,0 +1,3834 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he" id="htmlRoot">
+<!--
+/**
+ * Standalone Appointment Booking System
+ * 
+ * Purpose: This is a standalone HTML file that can be hosted on any web server
+ * (GitHub Pages, Firebase Hosting, Cloudflare Pages, etc.) to avoid the cookie
+ * and security issues that come with Google Apps Script Web Apps.
+ * 
+ * Method of Operation:
+ * 1. This file contains all HTML, CSS, and JavaScript needed for the booking interface
+ * 2. It communicates with the Google Apps Script backend via fetch API
+ * 3. No iframe is used, which eliminates third-party cookie issues
+ * 4. The URL appears normal to security software, eliminating false warnings
+ * 5. Host on any static hosting service (GitHub Pages, Firebase, Netlify, etc.)
+ * 
+ * Setup Instructions:
+ * 1. Deploy the Google Apps Script as a Web App (doGet/doPost must be accessible)
+ * 2. Copy the deployed Web App URL
+ * 3. Update the API_URL constant below with your Web App URL
+ * 4. Host this file on any static hosting service
+ * 
+ * @author Moyshi
+ * @created 2025-12-18
+ */
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate="page-title">קביעת פגישה</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e91e8c 0%, #d4a574 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            min-height: 100dvh;
+            background: white;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        .header {
+            background: linear-gradient(135deg, #e91e8c 0%, #d4a574 100%);
+            color: white;
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        .header-content {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 2rem 1.5rem;
+            width: 100%;
+        }
+
+        /* Step Container */
+        .step-container {
+            max-width: 600px;
+            margin: 0 auto;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .step-container.hidden {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Step Header */
+        .step-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .step-header .step-content {
+            display: flex;
+            align-items: center;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e91e8c, #d4a574);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-left: 1rem;
+        }
+
+        .step-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Language Toggle Button */
+        .language-toggle {
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-language {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-language:hover {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            border-color: #adb5bd;
+            color: #212529;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-language i {
+            font-size: 1rem;
+            color: #e91e8c;
+        }
+
+        /* RTL/LTR Support */
+        [dir="ltr"] .step-number {
+            margin-left: 0;
+            margin-right: 1rem;
+        }
+
+        [dir="ltr"] .form-label i {
+            margin-left: 0;
+            margin-right: 0.5rem;
+        }
+
+        [dir="ltr"] .btn .fas {
+            order: 2;
+        }
+
+        [dir="ltr"] .btn span {
+            order: 1;
+        }
+
+        [dir="ltr"] .calendar-nav#prevMonth i:before {
+            content: "\f053";
+            /* fa-chevron-left */
+        }
+
+        [dir="ltr"] .calendar-nav#nextMonth i:before {
+            content: "\f054";
+            /* fa-chevron-right */
+        }
+
+        [dir="ltr"] .step-actions {
+            flex-direction: row-reverse;
+        }
+
+        /* English Font Support */
+        [lang="en"] {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .form-label i {
+            margin-left: 0.5rem;
+            color: #e91e8c;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #e91e8c;
+            box-shadow: 0 0 0 3px rgba(233, 30, 140, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #999;
+        }
+
+        /* Duration Info */
+        .duration-info {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #fce4ec, #fff8e1);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #ad1457;
+            border-right: 4px solid #d4a574;
+            display: none;
+        }
+
+        .duration-info.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+
+            to {
+                opacity: 1;
+                max-height: 100px;
+            }
+        }
+
+        /* Error Messages */
+        .error-message {
+            color: #d32f2f;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e91e8c, #c2185b);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #c2185b, #ad1457);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(233, 30, 140, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #d4a574, #c9a066);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #c9a066, #b8956a);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 165, 116, 0.3);
+        }
+
+        /* Step Actions */
+        .step-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            gap: 1rem;
+        }
+
+        /* Calendar Styles */
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .calendar-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .calendar-nav {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #666;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-nav:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #f0f0f0;
+            padding: 1px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #fce4ec;
+        }
+
+        .calendar-day.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            background: #f9f9f9;
+        }
+
+        .calendar-day.selected {
+            background: linear-gradient(135deg, #e91e8c, #c2185b);
+            color: white;
+        }
+
+        .calendar-day.today {
+            background: #fff8e1;
+            color: #d4a574;
+            font-weight: 600;
+        }
+
+        .calendar-day.today.selected {
+            background: linear-gradient(135deg, #e91e8c, #c2185b);
+            color: white;
+        }
+
+        /* Day Headers */
+        .calendar-day-header {
+            background: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: default;
+        }
+
+        /* Time Slots */
+        .time-slots-container {
+            margin-bottom: 2rem;
+        }
+
+        .selected-date-info {
+            background: linear-gradient(135deg, #fce4ec, #fff8e1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 500;
+            color: #ad1457;
+            border-right: 4px solid #e91e8c;
+        }
+
+        .time-slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .time-slot {
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            font-weight: 500;
+        }
+
+        .time-slot:hover {
+            border-color: #e91e8c;
+            background: #fce4ec;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .time-slot.selected {
+            background: linear-gradient(135deg, #e91e8c, #c2185b);
+            color: white;
+            border-color: #c2185b;
+        }
+
+        .time-slot-time {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .time-slot-duration {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        /* Loading States */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .loading i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #e91e8c;
+        }
+
+        .no-slots-message {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #666;
+        }
+
+        .no-slots-message i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #ccc;
+        }
+
+        /* Confirmation Styles */
+        .confirmation-details {
+            margin-bottom: 2rem;
+        }
+
+        .confirmation-card {
+            background: linear-gradient(135deg, #fce4ec, #fff8e1);
+            border-radius: 12px;
+            padding: 2rem;
+            border-right: 4px solid #d4a574;
+        }
+
+        .confirmation-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            color: #ad1457;
+            font-size: 1.3rem;
+        }
+
+        .confirmation-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .confirmation-item:last-child {
+            border-bottom: none;
+        }
+
+        .confirmation-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .confirmation-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Success Message */
+        .success-message {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            color: #d4a574;
+            margin-bottom: 1rem;
+        }
+
+        .success-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #ad1457;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .success-details {
+            background: linear-gradient(135deg, #fce4ec, #fff8e1);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: right;
+        }
+
+        .success-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-spinner i {
+            font-size: 2rem;
+            color: #e91e8c;
+            margin-bottom: 1rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: #f8f9fa;
+            padding: 1rem;
+            text-align: center;
+            color: #666;
+            font-size: 0.875rem;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer-link {
+            color: #d4a574;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .footer-link:hover {
+            color: #e91e8c;
+            text-decoration: underline;
+        }
+
+        .mb-2 {
+            margin-bottom: 1rem;
+        }
+
+        .mb-3 {
+            margin-bottom: 1.5rem;
+        }
+
+        /* Manage existing appointment styles */
+        .manage-existing-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px dashed #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .manage-existing-divider span {
+            color: #888;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .btn-manage-existing {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 1rem;
+            background: transparent;
+            border: 1.5px solid #d0d0d0;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .btn-manage-existing:hover {
+            border-color: #e91e8c;
+            color: #e91e8c;
+            background: #fff0f6;
+        }
+
+        .btn-manage-existing i {
+            font-size: 0.85rem;
+        }
+
+        /* Step icon alternative (for management screens) */
+        .step-icon-alt {
+            font-size: 1.8rem;
+            color: #e91e8c;
+            margin-left: 1rem;
+        }
+
+        [dir="ltr"] .step-icon-alt {
+            margin-left: 0;
+            margin-right: 1rem;
+        }
+
+        /* Step description text */
+        .step-description {
+            color: #555;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        /* OTP input - large centered digits */
+        .otp-input {
+            text-align: center;
+            font-size: 1.8rem;
+            letter-spacing: 8px;
+            font-weight: 600;
+        }
+
+        .otp-resend-text {
+            text-align: center;
+            margin-top: 1.25rem;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #e91e8c;
+            cursor: pointer;
+            font-size: inherit;
+            font-family: inherit;
+            padding: 0;
+            text-decoration: underline;
+        }
+
+        /* Manage actions */
+        .manage-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .manage-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .manage-back-link {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e0e0e0;
+        }
+
+        .manage-back-link .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* btn-danger */
+        .btn-danger {
+            background: linear-gradient(135deg, #e53935, #c62828);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(229, 57, 53, 0.3);
+        }
+
+        /* Appointment list item */
+        .appt-list-item {
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .appt-list-item:hover {
+            border-color: #e91e8c;
+            background: #fff0f6;
+        }
+
+        .appt-list-item h4 {
+            margin: 0 0 0.4rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .appt-list-item p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Inline people selector in step2 during reschedule */
+        .reschedule-people-selector {
+            background: #fdf5f9;
+            border: 1px solid #f3d0e3;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Mobile Responsiveness - Tablet and larger phones (768px and below) */
+        @media screen and (max-width: 768px) {
+
+            /* Standard mobile form inputs and selects */
+            .form-input,
+            .form-select {
+                padding: 0.875rem 1rem;
+                font-size: 1rem;
+                height: auto;
+                line-height: 1.5;
+                border-radius: 8px;
+            }
+
+            /* Standard mobile buttons */
+            .btn {
+                padding: 0.875rem 1.25rem;
+                font-size: 1rem;
+                font-weight: 500;
+                height: auto;
+                min-height: 48px;
+                border-radius: 8px;
+            }
+
+            /* Calendar grid - ensure all 7 days fit */
+            .calendar-container {
+                overflow-x: hidden;
+                width: 100%;
+            }
+
+            .calendar-grid {
+                gap: 2px;
+                padding: 2px;
+            }
+
+            .calendar-day {
+                aspect-ratio: 1;
+                min-width: 0;
+                font-size: 0.875rem;
+                font-weight: 500;
+                border-radius: 6px;
+            }
+
+            .calendar-day-header {
+                font-size: 0.75rem;
+            }
+
+            .calendar-nav {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                padding: 0.5rem;
+            }
+
+            .calendar-header {
+                padding: 0.75rem 1rem;
+            }
+
+            .calendar-title {
+                font-size: 1.1rem;
+            }
+
+            /* Time slots grid - 2 columns */
+            .time-slots-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-top: 1rem;
+            }
+
+            .time-slot {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.9rem;
+                font-weight: 500;
+                height: auto;
+                min-height: 50px;
+                border-radius: 8px;
+            }
+
+            .time-slot-time {
+                font-size: 0.9rem;
+            }
+
+            /* Headers and titles - standard mobile sizes */
+            .header {
+                padding: 1.5rem 1rem;
+            }
+
+            .header-title {
+                font-size: 1.5rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+            }
+
+            .header-subtitle {
+                font-size: 0.9rem;
+            }
+
+            .header-icon {
+                font-size: 2rem;
+            }
+
+            .step-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+            }
+
+            .form-label {
+                font-size: 0.9rem;
+                font-weight: 500;
+                margin-bottom: 0.5rem;
+            }
+
+            /* Step containers */
+            .step-container {
+                max-width: 100%;
+                width: 100%;
+                margin: 0;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+
+            /* Step header */
+            .step-header {
+                margin-bottom: 1.5rem;
+                padding-bottom: 0.75rem;
+            }
+
+            .step-number {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+                margin-left: 0.75rem;
+            }
+
+            /* Step actions - sticky at bottom for mobile */
+            .step-actions {
+                position: sticky;
+                bottom: 0;
+                background: white;
+                padding: 1rem 0;
+                margin-top: 1.5rem;
+                border-top: 1px solid #e0e0e0;
+                z-index: 10;
+            }
+
+            /* Time slots container */
+            .time-slots-container {
+                margin-bottom: 0;
+                padding-bottom: 80px;
+                /* Space for sticky buttons */
+            }
+
+            .selected-date-info {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+                margin-bottom: 1rem;
+            }
+
+            /* Confirmation items */
+            .confirmation-item {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+
+            .confirmation-card {
+                padding: 1rem;
+            }
+
+            .confirmation-title {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+
+            .container {
+                max-width: 100vw;
+                min-width: 0;
+                margin: 0;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            body,
+            html {
+                padding: 0;
+                margin: 0;
+                overflow-x: hidden;
+            }
+
+            /* Duration info */
+            .duration-info {
+                font-size: 0.85rem;
+                padding: 0.5rem;
+            }
+
+            /* Loading states */
+            .loading {
+                padding: 1.5rem;
+            }
+
+            .loading i {
+                font-size: 1.5rem;
+            }
+
+            .no-slots-message {
+                padding: 2rem 1rem;
+            }
+
+            .no-slots-message i {
+                font-size: 2rem;
+            }
+
+            /* Language toggle */
+            .btn-language {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Mobile Responsiveness - Small phones (480px and below) */
+        @media screen and (max-width: 480px) {
+
+            /* Slightly smaller for very small screens */
+            .form-input,
+            .form-select {
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+
+            /* Buttons */
+            .btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.95rem;
+                min-height: 44px;
+                width: 100%;
+            }
+
+            /* Step actions - full width buttons stacked */
+            .step-actions {
+                flex-direction: column-reverse;
+                gap: 0.75rem;
+            }
+
+            .step-actions .btn {
+                width: 100%;
+            }
+
+            /* Calendar for small phones - even more compact */
+            .calendar-day {
+                font-size: 0.8rem;
+                border-radius: 4px;
+            }
+
+            .calendar-day-header {
+                font-size: 0.7rem;
+            }
+
+            .calendar-nav {
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+            }
+
+            .calendar-title {
+                font-size: 1rem;
+            }
+
+            /* Time slots - 2 columns still works on small phones */
+            .time-slots-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+
+            .time-slot {
+                padding: 0.625rem 0.375rem;
+                font-size: 0.85rem;
+                min-height: 44px;
+            }
+
+            /* Headers for small phones */
+            .header-title {
+                font-size: 1.375rem;
+            }
+
+            .header-subtitle {
+                font-size: 0.85rem;
+            }
+
+            .header-icon {
+                font-size: 1.75rem;
+            }
+
+            .step-title {
+                font-size: 1.125rem;
+            }
+
+            .form-label {
+                font-size: 0.875rem;
+            }
+
+            /* Main content padding */
+            .main-content {
+                padding: 0.875rem;
+            }
+
+            .header {
+                padding: 1.25rem 0.875rem;
+            }
+
+            /* Confirmation items */
+            .confirmation-item {
+                padding: 0.625rem;
+                font-size: 0.85rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.25rem;
+            }
+
+            .confirmation-label {
+                font-weight: 600;
+                font-size: 0.8rem;
+                color: #666;
+            }
+
+            .confirmation-value {
+                font-size: 0.9rem;
+                font-weight: 500;
+            }
+
+            .confirmation-card {
+                padding: 0.875rem;
+            }
+
+            .confirmation-title {
+                font-size: 1rem;
+            }
+
+            /* Step header for very small phones */
+            .step-header {
+                gap: 0.75rem;
+                margin-bottom: 1.25rem;
+            }
+
+            .step-number {
+                width: 28px;
+                height: 28px;
+                font-size: 0.9rem;
+                margin-left: 0.5rem;
+            }
+
+            /* Language toggle smaller */
+            .btn-language {
+                padding: 0.35rem 0.625rem;
+                font-size: 0.75rem;
+            }
+
+            /* Selected date info */
+            .selected-date-info {
+                font-size: 0.85rem;
+                padding: 0.625rem;
+            }
+
+            /* Duration info */
+            .duration-info {
+                font-size: 0.8rem;
+            }
+
+            /* Footer */
+            .footer {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+
+            /* Success message */
+            .success-icon {
+                font-size: 3rem;
+            }
+
+            .success-title {
+                font-size: 1.25rem;
+            }
+
+            .success-subtitle {
+                font-size: 0.9rem;
+            }
+
+            .success-details {
+                padding: 1rem;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 {
+            margin-top: 0.5rem;
+        }
+
+        .mt-2 {
+            margin-top: 1rem;
+        }
+
+        .mt-3 {
+            margin-top: 1.5rem;
+        }
+
+        .mb-1 {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <i class="fas fa-calendar-check header-icon"></i>
+                <h1 class="header-title" data-translate="header-title">קביעת פגישה</h1>
+                <p class="header-subtitle" data-translate="header-subtitle">בחרי את הזמן המתאים לך ונקבע פגישה בקלות</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Step 1: Personal Information -->
+            <div class="step-container" id="step1">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">1</div>
+                        <h2 class="step-title" data-translate="step1-title">פרטים אישיים</h2>
+                    </div>
+                    <!-- Language Toggle Button -->
+                    <div class="language-toggle">
+                        <button type="button" class="btn-language" id="languageToggle">
+                            <i class="fas fa-globe"></i>
+                            <span data-translate="switch-to-english">English</span>
+                        </button>
+                    </div>
+                </div>
+
+                <form autocomplete="on">
+
+                    <div class="form-group">
+                        <label for="clientName" class="form-label">
+                            <i class="fas fa-user"></i>
+                            <span data-translate="label-name">שם מלא</span>
+                        </label>
+                        <input type="text" id="clientName" name="name" class="form-input"
+                            data-translate-placeholder="placeholder-name" placeholder="הכניסי את שמך המלא"
+                            autocomplete="name" required>
+                        <div class="error-message" id="nameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="clientPhone" class="form-label">
+                            <i class="fas fa-phone"></i>
+                            <span data-translate="label-phone">מספר טלפון</span>
+                        </label>
+                        <input type="tel" id="clientPhone" name="phone" class="form-input"
+                            data-translate-placeholder="placeholder-phone" placeholder="050-1234567" autocomplete="tel"
+                            required>
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="clientEmail" class="form-label">
+                            <i class="fas fa-envelope"></i>
+                            <span data-translate="label-email">כתובת מייל</span>
+                        </label>
+                        <input type="email" id="clientEmail" name="email" class="form-input"
+                            data-translate-placeholder="placeholder-email" placeholder="your-email@example.com"
+                            autocomplete="email" required>
+                        <div class="error-message" id="emailError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numberOfPeople" class="form-label">
+                            <i class="fas fa-users"></i>
+                            <span data-translate="label-people">עבור כמה משתתפות הפגישה?</span>
+                        </label>
+                        <select id="numberOfPeople" class="form-select" required>
+                            <option value="" data-translate="select-people">בחרי מספר משתתפות</option>
+                            <option value="1" data-translate="people-1">משתתפת 1</option>
+                            <option value="2" data-translate="people-2">2 משתתפות</option>
+                            <option value="3" data-translate="people-3">3 משתתפות</option>
+                            <option value="4" data-translate="people-4">4 משתתפות</option>
+                            <option value="5" data-translate="people-5">5 משתתפות</option>
+                            <option value="6" data-translate="people-6">6 משתתפות</option>
+                            <option value="7" data-translate="people-7">7 משתתפות</option>
+                            <option value="8" data-translate="people-8">8 משתתפות</option>
+                            <option value="9" data-translate="people-9">9 משתתפות</option>
+                        </select>
+                        <div class="duration-info" id="durationInfo"></div>
+                        <div class="error-message" id="peopleError"></div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" id="continueToDate" disabled>
+                        <span data-translate="continue-date">המשיכי לבחירת תאריך</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon"></i>
+                    </button>
+                </form>
+
+                <!-- Manage existing appointment link -->
+                <div class="manage-existing-divider">
+                    <span data-translate="manage-existing-label">יש לך פגישה קיימת?</span>
+                    <button type="button" class="btn-manage-existing" id="manageExistingBtn">
+                        <i class="fas fa-calendar-edit"></i>
+                        <span data-translate="manage-existing-btn">שינוי או ביטול פגישה קיימת</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- OTP Request Step -->
+            <div class="step-container hidden" id="otpRequestStep">
+                <div class="step-header">
+                    <div class="step-content">
+                        <i class="fas fa-key step-icon-alt"></i>
+                        <h2 class="step-title" data-translate="otp-request-title">אימות זהות</h2>
+                    </div>
+                </div>
+                <p class="step-description" data-translate="otp-request-desc">הכניסי את כתובת המייל שקבעת איתה את הפגישה ונשלח לך קוד אימות.</p>
+                <div class="form-group">
+                    <label for="otpEmail" class="form-label">
+                        <i class="fas fa-envelope"></i>
+                        <span data-translate="label-email">כתובת מייל</span>
+                    </label>
+                    <input type="email" id="otpEmail" class="form-input"
+                        data-translate-placeholder="placeholder-email" placeholder="your-email@example.com"
+                        autocomplete="email">
+                    <div class="error-message" id="otpEmailError"></div>
+                </div>
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backFromOtpRequest">
+                        <i class="fas fa-arrow-right"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="sendOtpBtn">
+                        <i class="fas fa-paper-plane"></i>
+                        <span data-translate="otp-send-btn">שלחי קוד</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- OTP Verify Step -->
+            <div class="step-container hidden" id="otpVerifyStep">
+                <div class="step-header">
+                    <div class="step-content">
+                        <i class="fas fa-shield-alt step-icon-alt"></i>
+                        <h2 class="step-title" data-translate="otp-verify-title">הכניסי את הקוד</h2>
+                    </div>
+                </div>
+                <p class="step-description" data-translate="otp-verify-desc">קוד בן 6 ספרות נשלח למייל שלך. הקוד תקף ל-10 דקות.</p>
+                <div class="form-group">
+                    <label for="otpCode" class="form-label">
+                        <i class="fas fa-hashtag"></i>
+                        <span data-translate="otp-code-label">קוד האימות</span>
+                    </label>
+                    <input type="text" id="otpCode" class="form-input otp-input"
+                        maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                        data-translate-placeholder="otp-code-placeholder" placeholder="123456"
+                        autocomplete="one-time-code">
+                    <div class="error-message" id="otpCodeError"></div>
+                </div>
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backFromOtpVerify">
+                        <i class="fas fa-arrow-right"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="verifyOtpBtn">
+                        <i class="fas fa-check"></i>
+                        <span data-translate="otp-verify-btn">אמתי</span>
+                    </button>
+                </div>
+                <p class="otp-resend-text">
+                    <span data-translate="otp-no-email">לא קיבלת מייל?</span>
+                    <button type="button" class="btn-link" id="resendOtpBtn" data-translate="otp-resend">שלחי שוב</button>
+                </p>
+            </div>
+
+            <!-- Manage Appointment Step (shown after token link OR after OTP verify with single result) -->
+            <div class="step-container hidden" id="manageStep">
+                <div class="step-header">
+                    <div class="step-content">
+                        <i class="fas fa-calendar-check step-icon-alt"></i>
+                        <h2 class="step-title" data-translate="manage-title">ניהול הפגישה שלך</h2>
+                    </div>
+                </div>
+
+                <div class="confirmation-card" id="manageAppointmentCard">
+                    <h3 class="confirmation-title">
+                        <i class="fas fa-info-circle"></i>
+                        <span data-translate="manage-details-title">פרטי הפגישה הקיימת</span>
+                    </h3>
+                    <div id="manageAppointmentDetails"></div>
+                </div>
+
+                <div class="manage-actions">
+                    <button type="button" class="btn btn-primary" id="rescheduleBtn">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span data-translate="reschedule-btn">שינוי מועד הפגישה</span>
+                    </button>
+                    <button type="button" class="btn btn-danger" id="cancelAppointmentBtn">
+                        <i class="fas fa-trash-alt"></i>
+                        <span data-translate="cancel-appointment-btn">ביטול הפגישה</span>
+                    </button>
+                </div>
+                <div class="manage-back-link">
+                    <button type="button" class="btn btn-secondary" id="backToNewBooking">
+                        <i class="fas fa-plus"></i>
+                        <span data-translate="new-booking-btn">קביעת פגישה חדשה</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Multiple Appointments List (after OTP with several results) -->
+            <div class="step-container hidden" id="appointmentListStep">
+                <div class="step-header">
+                    <div class="step-content">
+                        <i class="fas fa-list step-icon-alt"></i>
+                        <h2 class="step-title" data-translate="appt-list-title">הפגישות שלך</h2>
+                    </div>
+                </div>
+                <p class="step-description" data-translate="appt-list-desc">בחרי את הפגישה שברצונך לנהל.</p>
+                <div id="appointmentListContainer"></div>
+                <div class="step-actions" style="margin-top:1.5rem;">
+                    <button type="button" class="btn btn-secondary" id="backFromApptList">
+                        <i class="fas fa-arrow-right"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cancel Confirmation Step -->
+            <div class="step-container hidden" id="cancelConfirmStep">
+                <div class="step-header">
+                    <div class="step-content">
+                        <i class="fas fa-exclamation-triangle step-icon-alt" style="color:#e53935;"></i>
+                        <h2 class="step-title" data-translate="cancel-confirm-title">אישור ביטול</h2>
+                    </div>
+                </div>
+                <p class="step-description" data-translate="cancel-confirm-desc">את בטוחה שברצונך לבטל את הפגישה? לא ניתן לבטל פעולה זו.</p>
+                <div id="cancelConfirmDetails"></div>
+                <div class="step-actions" style="margin-top:2rem;">
+                    <button type="button" class="btn btn-secondary" id="backFromCancelConfirm">
+                        <i class="fas fa-arrow-right"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmCancelBtn">
+                        <i class="fas fa-trash-alt"></i>
+                        <span data-translate="confirm-cancel-btn">כן, בטלי את הפגישה</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cancellation Success -->
+            <div class="step-container hidden" id="cancelSuccessStep">
+                <div class="success-message">
+                    <div class="success-icon" style="background:linear-gradient(135deg,#ef9a9a,#e57373);">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2 class="success-title" data-translate="cancel-success-title">הפגישה בוטלה בהצלחה</h2>
+                    <p class="success-subtitle" data-translate="cancel-success-subtitle">תקבלי אישור ביטול בדוא"ל</p>
+                    <div class="success-actions">
+                        <button type="button" class="btn btn-primary" id="bookAfterCancel">
+                            <i class="fas fa-plus"></i>
+                            <span data-translate="book-another">קבעי פגישה נוספת</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Date Selection -->
+            <div class="step-container hidden" id="step2">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">2</div>
+                        <h2 class="step-title" data-translate="step2-title">בחירת תאריך</h2>
+                    </div>
+                </div>
+
+                <!-- Inline people selector (only visible during reschedule) -->
+                <div class="reschedule-people-selector hidden" id="reschedulePeopleSelector">
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label for="reschedulePeopleCount" class="form-label" style="font-size:0.9rem;">
+                            <i class="fas fa-users"></i>
+                            <span data-translate="reschedule-people-label">מספר משתתפות (שני במידת הצורך)</span>
+                        </label>
+                        <select id="reschedulePeopleCount" class="form-select" style="font-size:0.9rem;padding:0.5rem 0.75rem;">
+                            <option value="1" data-translate="people-1">משתתפת 1</option>
+                            <option value="2" data-translate="people-2">2 משתתפות</option>
+                            <option value="3" data-translate="people-3">3 משתתפות</option>
+                            <option value="4" data-translate="people-4">4 משתתפות</option>
+                            <option value="5" data-translate="people-5">5 משתתפות</option>
+                            <option value="6" data-translate="people-6">6 משתתפות</option>
+                            <option value="7" data-translate="people-7">7 משתתפות</option>
+                            <option value="8" data-translate="people-8">8 משתתפות</option>
+                            <option value="9" data-translate="people-9">9 משתתפות</option>
+                        </select>
+                        <div class="duration-info show" id="rescheduleDurationInfo" style="margin-top:0.25rem;"></div>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button type="button" class="calendar-nav" id="prevMonth">
+                            <i class="fas fa-chevron-right" id="prevIcon"></i>
+                        </button>
+                        <h3 class="calendar-title" id="calendarTitle"></h3>
+                        <button type="button" class="calendar-nav" id="nextMonth">
+                            <i class="fas fa-chevron-left" id="nextIcon"></i>
+                        </button>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep1">
+                        <i class="fas fa-arrow-right" id="backIcon1"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="continueToTime" disabled>
+                        <span data-translate="continue-time">המשיכי לבחירת שעה</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Time Selection -->
+            <div class="step-container hidden" id="step3">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">3</div>
+                        <h2 class="step-title" data-translate="step3-title">בחירת שעה</h2>
+                    </div>
+                </div>
+
+                <div class="selected-date-info" id="selectedDateInfo"></div>
+
+                <div class="time-slots-container">
+                    <div class="loading" id="timeSlotsLoading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span data-translate="loading-slots">טוענת שעות פנויות...</span>
+                    </div>
+                    <div class="time-slots-grid" id="timeSlotsGrid"></div>
+                    <div class="no-slots-message hidden" id="noSlotsMessage">
+                        <i class="fas fa-calendar-times"></i>
+                        <p data-translate="no-slots">אין שעות פנויות בתאריך זה</p>
+                        <p data-translate="choose-another">אנא בחרי תאריך אחר</p>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep2">
+                        <i class="fas fa-arrow-right" id="backIcon2"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="continueToConfirm" disabled>
+                        <span data-translate="continue-confirm">המשיכי לאישור</span>
+                        <i class="fas fa-arrow-left" id="arrowIcon3"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Confirmation -->
+            <div class="step-container hidden" id="step4">
+                <div class="step-header">
+                    <div class="step-content">
+                        <div class="step-number">4</div>
+                        <h2 class="step-title" data-translate="step4-title">אישור פרטי הפגישה</h2>
+                    </div>
+                </div>
+
+                <div class="confirmation-details">
+                    <div class="confirmation-card">
+                        <h3 class="confirmation-title">
+                            <i class="fas fa-check-circle"></i>
+                            <span data-translate="confirmation-title">סיכום הפגישה</span>
+                        </h3>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-name">שם:</span>
+                            <span class="confirmation-value" id="confirmName"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-phone">טלפון:</span>
+                            <span class="confirmation-value" id="confirmPhone"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-email">מייל:</span>
+                            <span class="confirmation-value" id="confirmEmail"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-people">מספר משתתפות:</span>
+                            <span class="confirmation-value" id="confirmPeople"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-date">תאריך:</span>
+                            <span class="confirmation-value" id="confirmDate"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-time">שעה:</span>
+                            <span class="confirmation-value" id="confirmTime"></span>
+                        </div>
+
+                        <div class="confirmation-item">
+                            <span class="confirmation-label" data-translate="confirm-duration">משך הפגישה:</span>
+                            <span class="confirmation-value" id="confirmDuration"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" id="backToStep3">
+                        <i class="fas fa-arrow-right" id="backIcon3"></i>
+                        <span data-translate="back">חזרי</span>
+                    </button>
+                    <button type="button" class="btn btn-success" id="confirmBooking">
+                        <i class="fas fa-check"></i>
+                        <span data-translate="confirm-booking">אשרי וקבעי פגישה</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Success Message -->
+            <div class="step-container hidden" id="successStep">
+                <div class="success-message">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2 class="success-title" data-translate="success-title">הפגישה נקבעה בהצלחה!</h2>
+                    <p class="success-subtitle" data-translate="success-subtitle">תקבלי אישור בדוא"ל בקרוב</p>
+
+                    <div class="success-details" id="successDetails"></div>
+
+                    <div class="success-actions">
+                        <button type="button" class="btn btn-success" id="addToCalendar">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span data-translate="add-calendar">הוסיפי ליומן שלך</span>
+                        </button>
+                        <button type="button" class="btn btn-primary" id="bookAnother">
+                            <i class="fas fa-plus"></i>
+                            <span data-translate="book-another">קבעי פגישה נוספת</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p data-translate="footer-text" data-translate-html="true">&copy; 2024 מערכת קביעת פגישות - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a></p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p data-translate="booking-progress">קובעת את הפגישה...</p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Standalone Client-side JavaScript for the Appointment Booking System
+         * 
+         * This script handles all the frontend logic including:
+         * - Form validation and navigation between steps
+         * - Calendar display and date selection
+         * - Time slot management and selection
+         * - Communication with Google Apps Script backend via fetch API
+         * - User interface interactions and animations
+         * - Multilingual support (Hebrew/English)
+         * 
+         * IMPORTANT: This version uses fetch API instead of google.script.run
+         * to allow hosting on external servers (GitHub Pages, Firebase, etc.)
+         * 
+         * @author Moyshi
+         * @created 2025-12-18
+         */
+
+        // ============================================================================
+        // CONFIGURATION - UPDATE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        // ============================================================================
+        /**
+         * The URL of your deployed Google Apps Script Web App
+         * 
+         * How to get this URL:
+         * 1. Open your Google Apps Script project
+         * 2. Click "Deploy" -> "Manage deployments"
+         * 3. Copy the "Web app URL" that starts with https://script.google.com/macros/s/...
+         * 4. Paste it here
+         * 
+         * IMPORTANT: Make sure the Web App is deployed with:
+         * - Execute as: Me (your email)
+         * - Who has access: Anyone
+         */
+        const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+        // ============================================================================
+
+        // Global variables
+        let currentStep = 1;
+        let selectedDate = null;
+        let selectedTimeSlot = null;
+        let appointmentData = {};
+        let currentMonth = new Date();
+        let config = {};
+        let calendarLink = null;
+        let currentLanguage = 'he'; // Default to Hebrew
+
+        // Management flow state
+        let manageToken = null;          // Active management token (from URL or OTP flow)
+        let manageAppointment = null;    // Appointment details for the manage screen
+        let otpEmailValue = '';          // Email used for OTP flow
+        let isRescheduling = false;      // True when the booking flow is being used for rescheduling
+
+        // Pre-loading cache and state variables
+        // These variables manage background loading of time slots to improve user experience
+        let availabilityCache = {};       // Cache of daily availability {dateStr: {businessHours, busySlots}}
+        let preloadQueue = [];            // Queue of dates to preload (working days only)
+        let isPreloading = false;         // Flag indicating if preload is currently running
+        let preloadPaused = false;        // Flag to pause preload when immediate load is needed
+        let currentPreloadDate = null;    // The date currently being preloaded
+        let preloadDuration = null;       // Duration for preloading (calculated from number of people)
+
+        // Translations object
+        const translations = {
+            he: {
+                'page-title': 'קביעת פגישה',
+                'header-title': 'קביעת פגישה',
+                'header-subtitle': 'בחרי את הזמן המתאים לך ונקבע פגישה בקלות',
+                'step1-title': 'פרטים אישיים',
+                'step2-title': 'בחירת תאריך',
+                'step3-title': 'בחירת שעה',
+                'step4-title': 'אישור פרטי הפגישה',
+                'switch-to-english': 'English',
+                'label-name': 'שם מלא',
+                'label-phone': 'מספר טלפון',
+                'label-email': 'כתובת מייל',
+                'label-people': 'עבור כמה משתתפות הפגישה?',
+                'placeholder-name': 'הכניסי את שמך המלא',
+                'placeholder-phone': '050-1234567',
+                'placeholder-email': 'your-email@example.com',
+                'select-people': 'בחרי מספר משתתפות',
+                'people-1': 'משתתפת 1',
+                'people-2': '2 משתתפות',
+                'people-3': '3 משתתפות',
+                'people-4': '4 משתתפות',
+                'people-5': '5 משתתפות',
+                'people-6': '6 משתתפות',
+                'people-7': '7 משתתפות',
+                'people-8': '8 משתתפות',
+                'people-9': '9 משתתפות',
+                'continue-date': 'המשיכי לבחירת תאריך',
+                'continue-time': 'המשיכי לבחירת שעה',
+                'continue-confirm': 'המשיכי לאישור',
+                'back': 'חזרי',
+                'loading-slots': 'טוענת שעות פנויות...',
+                'no-slots': 'אין שעות פנויות בתאריך זה',
+                'choose-another': 'אנא בחרי תאריך אחר',
+                'confirmation-title': 'סיכום הפגישה',
+                'confirm-name': 'שם:',
+                'confirm-phone': 'טלפון:',
+                'confirm-email': 'מייל:',
+                'confirm-people': 'מספר משתתפות:',
+                'confirm-date': 'תאריך:',
+                'confirm-time': 'שעה:',
+                'confirm-duration': 'משך הפגישה:',
+                'confirm-booking': 'אשרי וקבעי פגישה',
+                'success-title': 'הפגישה נקבעה בהצלחה!',
+                'success-subtitle': 'תקבלי אישור בדוא"ל בקרוב',
+                'add-calendar': 'הוסיפי ליומן שלך',
+                'book-another': 'קבעי פגישה נוספת',
+                'footer-text': '&copy; 2024 מערכת קביעת פגישות - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a>',
+                'booking-progress': 'קובעת את הפגישה...',
+                'duration-text': 'משך הפגישה:',
+                'selected-date': 'תאריך נבחר:',
+                'minutes': 'דקות',
+                'hours': 'שעות',
+                'hour': 'שעה',
+                'and': 'ו-',
+                'participants': 'משתתפות',
+                'participant': 'משתתפת',
+                'confirm-address': '📍 כתובת:',
+                'error-name-required': 'אנא הכניסי את שמך',
+                'error-name-length': 'השם חייב להכיל לפחות 2 תווים',
+                'error-phone-required': 'אנא הכניסי מספר טלפון',
+                'error-phone-invalid': 'מספר טלפון לא תקין',
+                'error-email-required': 'אנא הכניסי כתובת מייל',
+                'error-email-invalid': 'כתובת מייל לא תקינה',
+                'error-people-required': 'אנא בחרי מספר משתתפות',
+                'error-api': 'שגיאה בתקשורת עם השרת. נסי שוב.',
+                'error-config': 'שגיאה בטעינת ההגדרות. נסי לרענן את הדף.',
+                'manage-existing-label': 'יש לך פגישה קיימת?',
+                'manage-existing-btn': 'שינוי או ביטול פגישה קיימת',
+                'otp-request-title': 'אימות זהות',
+                'otp-request-desc': 'הכניסי את כתובת המייל שקבעת איתה את הפגישה ונשלח לך קוד אימות.',
+                'otp-send-btn': 'שלחי קוד',
+                'otp-verify-title': 'הכניסי את הקוד',
+                'otp-verify-desc': 'קוד בן 6 ספרות נשלח למייל שלך. הקוד תקף ל-10 דקות.',
+                'otp-code-label': 'קוד האימות',
+                'otp-code-placeholder': '123456',
+                'otp-verify-btn': 'אמתי',
+                'otp-no-email': 'לא קיבלת מייל?',
+                'otp-resend': 'שלחי שוב',
+                'manage-title': 'ניהול הפגישה שלך',
+                'manage-details-title': 'פרטי הפגישה הקיימת',
+                'reschedule-btn': 'שינוי מועד הפגישה',
+                'cancel-appointment-btn': 'ביטול הפגישה',
+                'new-booking-btn': 'קביעת פגישה חדשה',
+                'appt-list-title': 'הפגישות שלך',
+                'appt-list-desc': 'בחרי את הפגישה שברצונך לנהל.',
+                'cancel-confirm-title': 'אישור ביטול',
+                'cancel-confirm-desc': 'את בטוחה שברצונך לבטל את הפגישה? לא ניתן לבטל פעולה זו.',
+                'confirm-cancel-btn': 'כן, בטלי את הפגישה',
+                'cancel-success-title': 'הפגישה בוטלה בהצלחה',
+                'cancel-success-subtitle': 'תקבלי אישור ביטול בדוא"ל',
+                'reschedule-success-title': 'הפגישה שונתה בהצלחה!',
+                'reschedule-success-subtitle': 'תקבלי אישור בדוא"ל בקרוב',
+                'manage-expired': 'לא ניתן לשנות פגישה שכבר התחילה.',
+                'manage-invalid-token': 'הקישור אינו תקין או שפג תוקפו.',
+                'manage-loading': 'טוענת פרטי הפגישה...',
+                'reschedule-progress': 'מעדכנת את הפגישה...',
+                'cancel-progress': 'מבטלת את הפגישה...',
+                'reschedule-people-label': 'מספר משתתפות (שני במידת הצורך)',
+                'confirm-booking-reschedule': 'אשרי ועדכני את הפגישה',
+                'confirm-old-details-title': 'הפרטים הקודמים (בוטלו)',
+                'reschedule-subject-note': 'עדכון מועד פגישה'
+            },
+            en: {
+                'page-title': 'Book an Appointment',
+                'header-title': 'Book an Appointment',
+                'header-subtitle': 'Choose your preferred time and book an appointment easily',
+                'step1-title': 'Personal Information',
+                'step2-title': 'Select Date',
+                'step3-title': 'Select Time',
+                'step4-title': 'Confirm Appointment Details',
+                'switch-to-english': 'עברית',
+                'label-name': 'Full Name',
+                'label-phone': 'Phone Number',
+                'label-email': 'Email Address',
+                'label-people': 'How many participants are coming for the appointment?',
+                'placeholder-name': 'Enter your full name',
+                'placeholder-phone': '050-1234567',
+                'placeholder-email': 'your-email@example.com',
+                'select-people': 'Select number of participants',
+                'people-1': '1 participant',
+                'people-2': '2 participants',
+                'people-3': '3 participants',
+                'people-4': '4 participants',
+                'people-5': '5 participants',
+                'people-6': '6 participants',
+                'people-7': '7 participants',
+                'people-8': '8 participants',
+                'people-9': '9 participants',
+                'continue-date': 'Continue to Date Selection',
+                'continue-time': 'Continue to Time Selection',
+                'continue-confirm': 'Continue to Confirmation',
+                'back': 'Back',
+                'loading-slots': 'Loading available times...',
+                'no-slots': 'No available times on this date',
+                'choose-another': 'Please choose another date',
+                'confirmation-title': 'Appointment Summary',
+                'confirm-name': 'Name:',
+                'confirm-phone': 'Phone:',
+                'confirm-email': 'Email:',
+                'confirm-people': 'Number of participants:',
+                'confirm-date': 'Date:',
+                'confirm-time': 'Time:',
+                'confirm-duration': 'Duration:',
+                'confirm-booking': 'Confirm and Book Appointment',
+                'success-title': 'Appointment Booked Successfully!',
+                'success-subtitle': 'You will receive a confirmation email shortly',
+                'add-calendar': 'Add to Your Calendar',
+                'book-another': 'Book Another Appointment',
+                'footer-text': '&copy; 2024 Appointment Booking System - Built by <a href="mailto:moyshiginzburg@gmail.com" class="footer-link">Moyshi</a>',
+                'booking-progress': 'Booking your appointment...',
+                'duration-text': 'Duration:',
+                'selected-date': 'Selected date:',
+                'minutes': 'minutes',
+                'hours': 'hours',
+                'hour': 'hour',
+                'and': 'and',
+                'participants': 'participants',
+                'participant': 'participant',
+                'confirm-address': '📍 Address:',
+                'error-name-required': 'Please enter your name',
+                'error-name-length': 'Name must contain at least 2 characters',
+                'error-phone-required': 'Please enter phone number',
+                'error-phone-invalid': 'Invalid phone number',
+                'error-email-required': 'Please enter email address',
+                'error-email-invalid': 'Invalid email address',
+                'error-people-required': 'Please select number of participants',
+                'error-api': 'Server communication error. Please try again.',
+                'error-config': 'Error loading settings. Please refresh the page.',
+                'manage-existing-label': 'Have an existing appointment?',
+                'manage-existing-btn': 'Change or Cancel Appointment',
+                'otp-request-title': 'Identity Verification',
+                'otp-request-desc': 'Enter the email address you used to book your appointment and we will send you a verification code.',
+                'otp-send-btn': 'Send Code',
+                'otp-verify-title': 'Enter the Code',
+                'otp-verify-desc': 'A 6-digit code was sent to your email. The code is valid for 10 minutes.',
+                'otp-code-label': 'Verification Code',
+                'otp-code-placeholder': '123456',
+                'otp-verify-btn': 'Verify',
+                'otp-no-email': "Didn't receive an email?",
+                'otp-resend': 'Send again',
+                'manage-title': 'Manage Your Appointment',
+                'manage-details-title': 'Current Appointment Details',
+                'reschedule-btn': 'Reschedule Appointment',
+                'cancel-appointment-btn': 'Cancel Appointment',
+                'new-booking-btn': 'Book a New Appointment',
+                'appt-list-title': 'Your Appointments',
+                'appt-list-desc': 'Select the appointment you want to manage.',
+                'cancel-confirm-title': 'Confirm Cancellation',
+                'cancel-confirm-desc': 'Are you sure you want to cancel this appointment? This action cannot be undone.',
+                'confirm-cancel-btn': 'Yes, Cancel Appointment',
+                'cancel-success-title': 'Appointment Cancelled Successfully',
+                'cancel-success-subtitle': 'You will receive a cancellation confirmation email',
+                'reschedule-success-title': 'Appointment Rescheduled Successfully!',
+                'reschedule-success-subtitle': 'You will receive a confirmation email shortly',
+                'manage-expired': 'Cannot manage an appointment that has already started.',
+                'manage-invalid-token': 'This link is invalid or has expired.',
+                'manage-loading': 'Loading appointment details...',
+                'reschedule-progress': 'Updating your appointment...',
+                'cancel-progress': 'Cancelling your appointment...',
+                'reschedule-people-label': 'Number of participants (change if needed)',
+                'confirm-booking-reschedule': 'Confirm and Update Appointment',
+                'confirm-old-details-title': 'Previous details (cancelled)',
+                'reschedule-subject-note': 'Appointment Rescheduled'
+            }
+        };
+
+        // Hebrew month names
+        const hebrewMonths = [
+            'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+            'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
+        ];
+
+        // English month names
+        const englishMonths = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        // Hebrew day names
+        const hebrewDays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
+        // English day names
+        const englishDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+        // ============================================================================
+        // API COMMUNICATION FUNCTIONS
+        // ============================================================================
+
+        /**
+         * Makes a GET request to the Google Apps Script API
+         * @param {Object} params - Query parameters to send
+         * @return {Promise<Object>} The JSON response
+         */
+        async function apiGet(params) {
+            const queryString = new URLSearchParams(params).toString();
+            const url = `${API_URL}?${queryString}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API GET error:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Makes a POST request to the Google Apps Script API
+         * Uses a workaround for GAS CORS issues by encoding data in URL
+         * 
+         * @param {Object} data - Data to send
+         * @return {Promise<Object>} The JSON response
+         */
+        async function apiPost(data) {
+            try {
+                // For Google Apps Script, we need to use GET with encoded data
+                // because POST has CORS issues with external domains
+                const encodedData = encodeURIComponent(JSON.stringify(data));
+                const url = `${API_URL}?action=${data.action}&data=${encodedData}`;
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API POST error:', error);
+                throw error;
+            }
+        }
+
+        // ============================================================================
+        // APPLICATION INITIALIZATION
+        // ============================================================================
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            initializeApp();
+        });
+
+        /**
+         * Initialize the application
+         */
+        async function initializeApp() {
+            // Check if API URL is configured
+            if (API_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+                console.error('API URL not configured! Please update the API_URL constant.');
+                alert(t('error-config') + '\n\nPlease configure the API_URL in the HTML file.');
+                return;
+            }
+
+            // Detect management token BEFORE any async work so we can show loading instantly.
+            // This is purely synchronous – zero impact on new-booking flow.
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlAction = urlParams.get('action');
+            const urlToken = urlParams.get('token');
+            const isManageLink = (urlAction === 'manage' && urlToken);
+
+            if (isManageLink) {
+                // Immediately hide step 1 and show loading overlay (no flash of the booking form)
+                document.getElementById('step1').classList.add('hidden');
+                const loadingP = document.getElementById('loadingOverlay').querySelector('p');
+                loadingP.textContent = t('manage-loading');
+                document.getElementById('loadingOverlay').classList.remove('hidden');
+            }
+
+            // Load configuration from server
+            try {
+                const response = await apiGet({ action: 'getConfig' });
+                if (response.success) {
+                    handleConfigLoaded(response.config);
+                } else {
+                    console.error('Failed to load config:', response.message);
+                    handleConfigLoaded({
+                        baseDuration: 30,
+                        additionalPersonDuration: 15,
+                        businessName: 'YOUR_BUSINESS_NAME_HE'
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+                handleConfigLoaded({
+                    baseDuration: 30,
+                    additionalPersonDuration: 15,
+                    businessName: 'YOUR_BUSINESS_NAME_HE'
+                });
+            }
+
+            // Set up event listeners
+            setupEventListeners();
+
+            // Initialize calendar
+            initializeCalendar();
+
+            if (isManageLink) {
+                applyLanguage(currentLanguage);
+                await handleTokenManageLink(urlToken);
+            } else {
+                applyLanguage(currentLanguage);
+            }
+
+            console.log('Appointment booking system initialized (standalone mode)');
+        }
+
+        /**
+         * Handle configuration loaded from server
+         */
+        function handleConfigLoaded(serverConfig) {
+            config = serverConfig;
+            console.log('Configuration loaded:', config);
+
+            // Start preloading time slots in the background
+            // This improves UX by having slots ready when user reaches step 3
+            startPreloading();
+        }
+
+        /**
+         * Set up all event listeners
+         */
+        function setupEventListeners() {
+            // Language toggle
+            document.getElementById('languageToggle').addEventListener('click', toggleLanguage);
+
+            // Step 1 - Personal Information
+            document.getElementById('clientName').addEventListener('input', validateStep1);
+            document.getElementById('clientPhone').addEventListener('input', validateStep1);
+            document.getElementById('clientEmail').addEventListener('input', validateStep1);
+            document.getElementById('numberOfPeople').addEventListener('change', handlePeopleChange);
+            document.getElementById('continueToDate').addEventListener('click', () => goToStep(2));
+
+            // Step 2 - Date Selection
+            document.getElementById('backToStep1').addEventListener('click', () => {
+                if (isRescheduling) {
+                    isRescheduling = false;
+                    showStep('manageStep');
+                } else {
+                    goToStep(1);
+                }
+            });
+            document.getElementById('continueToTime').addEventListener('click', () => goToStep(3));
+            document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+            document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+
+            // Step 3 - Time Selection
+            document.getElementById('backToStep2').addEventListener('click', () => goToStep(2));
+            document.getElementById('continueToConfirm').addEventListener('click', () => goToStep(4));
+
+            // Step 4 - Confirmation
+            document.getElementById('backToStep3').addEventListener('click', () => goToStep(3));
+            document.getElementById('confirmBooking').addEventListener('click', confirmBooking);
+
+            // Success step
+            document.getElementById('bookAnother').addEventListener('click', resetForm);
+            document.getElementById('addToCalendar').addEventListener('click', addToCalendar);
+
+            // Manage existing appointment (OTP flow)
+            document.getElementById('manageExistingBtn').addEventListener('click', () => showStep('otpRequestStep'));
+            document.getElementById('backFromOtpRequest').addEventListener('click', () => showStep('step1'));
+            document.getElementById('sendOtpBtn').addEventListener('click', handleSendOtp);
+            document.getElementById('backFromOtpVerify').addEventListener('click', () => showStep('otpRequestStep'));
+            document.getElementById('verifyOtpBtn').addEventListener('click', handleVerifyOtp);
+            document.getElementById('resendOtpBtn').addEventListener('click', handleSendOtp);
+
+            // Manage step actions
+            document.getElementById('rescheduleBtn').addEventListener('click', handleRescheduleClick);
+            document.getElementById('cancelAppointmentBtn').addEventListener('click', handleCancelClick);
+            document.getElementById('backToNewBooking').addEventListener('click', resetForm);
+
+            // Appointment list (multiple appointments after OTP)
+            document.getElementById('backFromApptList').addEventListener('click', () => showStep('otpRequestStep'));
+
+            // Cancel confirm
+            document.getElementById('backFromCancelConfirm').addEventListener('click', () => showStep('manageStep'));
+            document.getElementById('confirmCancelBtn').addEventListener('click', performCancel);
+
+            // Reschedule inline people selector
+            document.getElementById('reschedulePeopleCount').addEventListener('change', handleReschedulePeopleChange);
+
+            // Cancel success
+            document.getElementById('bookAfterCancel').addEventListener('click', resetForm);
+        }
+
+        /**
+         * Toggle language between Hebrew and English
+         */
+        function toggleLanguage() {
+            currentLanguage = currentLanguage === 'he' ? 'en' : 'he';
+            applyLanguage(currentLanguage);
+
+            // Re-render calendar with new language
+            renderCalendar();
+
+            // Update duration info if needed
+            if (document.getElementById('numberOfPeople').value) {
+                handlePeopleChange();
+            }
+
+            // Update selected date info if needed
+            if (selectedDate) {
+                updateSelectedDateInfo();
+            }
+
+            console.log('Language switched to:', currentLanguage);
+        }
+
+        /**
+         * Apply language translations to the page
+         */
+        function applyLanguage(lang) {
+            const html = document.getElementById('htmlRoot');
+            html.setAttribute('lang', lang);
+            html.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+
+            // Update all elements with translation attributes
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    if (element.getAttribute('data-translate-html') === 'true') {
+                        element.innerHTML = translations[lang][key];
+                    } else {
+                        element.textContent = translations[lang][key];
+                    }
+                }
+            });
+
+            // Update placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-translate-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    element.placeholder = translations[lang][key];
+                }
+            });
+
+            // Update document title
+            const titleKey = document.querySelector('title').getAttribute('data-translate');
+            if (translations[lang] && translations[lang][titleKey]) {
+                document.title = translations[lang][titleKey];
+            }
+
+            // Update arrow directions for LTR/RTL
+            updateArrowDirections(lang);
+        }
+
+        /**
+         * Update arrow directions based on language direction
+         */
+        function updateArrowDirections(lang) {
+            const isRTL = lang === 'he';
+
+            // Update calendar navigation arrows
+            const prevIcon = document.getElementById('prevIcon');
+            const nextIcon = document.getElementById('nextIcon');
+
+            if (prevIcon && nextIcon) {
+                if (isRTL) {
+                    prevIcon.className = 'fas fa-chevron-right';
+                    nextIcon.className = 'fas fa-chevron-left';
+                } else {
+                    prevIcon.className = 'fas fa-chevron-left';
+                    nextIcon.className = 'fas fa-chevron-right';
+                }
+            }
+
+            // Update button arrows
+            const arrowIcons = [
+                'arrowIcon', 'arrowIcon2', 'arrowIcon3',
+                'backIcon1', 'backIcon2', 'backIcon3'
+            ];
+
+            arrowIcons.forEach(iconId => {
+                const icon = document.getElementById(iconId);
+                if (icon) {
+                    if (iconId.startsWith('arrow')) {
+                        icon.className = isRTL ? 'fas fa-arrow-left' : 'fas fa-arrow-right';
+                    } else {
+                        icon.className = isRTL ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
+                    }
+                }
+            });
+        }
+
+        /**
+         * Get translation for a key
+         */
+        function t(key) {
+            return translations[currentLanguage] && translations[currentLanguage][key]
+                ? translations[currentLanguage][key]
+                : key;
+        }
+
+        /**
+         * Validate step 1 form fields
+         */
+        function validateStep1() {
+            const name = document.getElementById('clientName').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const email = document.getElementById('clientEmail').value.trim();
+            const people = document.getElementById('numberOfPeople').value;
+
+            // Clear previous errors
+            clearErrors();
+
+            let isValid = true;
+
+            // Validate name
+            if (!name) {
+                showError('nameError', t('error-name-required'));
+                isValid = false;
+            } else if (name.length < 2) {
+                showError('nameError', t('error-name-length'));
+                isValid = false;
+            }
+
+            // Validate phone
+            if (!phone) {
+                showError('phoneError', t('error-phone-required'));
+                isValid = false;
+            } else if (!isValidPhone(phone)) {
+                showError('phoneError', t('error-phone-invalid'));
+                isValid = false;
+            }
+
+            // Validate email
+            if (!email) {
+                showError('emailError', t('error-email-required'));
+                isValid = false;
+            } else if (!isValidEmail(email)) {
+                showError('emailError', t('error-email-invalid'));
+                isValid = false;
+            }
+
+            // Validate number of people
+            if (!people) {
+                showError('peopleError', t('error-people-required'));
+                isValid = false;
+            }
+
+            // Enable/disable continue button
+            document.getElementById('continueToDate').disabled = !isValid;
+
+            return isValid;
+        }
+
+        /**
+         * Handle change in number of people
+         */
+        function handlePeopleChange() {
+            const people = parseInt(document.getElementById('numberOfPeople').value);
+            const durationInfo = document.getElementById('durationInfo');
+
+            if (people) {
+                const baseDuration = config.baseDuration || 30;
+                const additionalDuration = config.additionalPersonDuration || 15;
+                const totalDuration = baseDuration + ((people - 1) * additionalDuration);
+
+                // Format duration in a user-friendly way
+                let durationText = formatDurationInLanguage(totalDuration);
+
+                durationInfo.innerHTML = `
+            <i class="fas fa-clock"></i>
+            ${t('duration-text')} ${durationText}
+        `;
+                durationInfo.classList.add('show');
+            } else {
+                durationInfo.classList.remove('show');
+            }
+
+            validateStep1();
+
+            // If we represent a date selected, recalculate slots
+            if (selectedDate && currentStep >= 3) {
+                loadTimeSlots();
+            }
+        }
+
+        /**
+         * Format duration according to current language
+         */
+        function formatDurationInLanguage(minutes) {
+            if (currentLanguage === 'he') {
+                if (minutes < 60) {
+                    return `${minutes} ${t('minutes')}`;
+                } else {
+                    const hours = Math.floor(minutes / 60);
+                    const remainingMinutes = minutes % 60;
+
+                    if (remainingMinutes === 0) {
+                        return hours === 1 ? t('hour') : `${hours} ${t('hours')}`;
+                    } else {
+                        const hoursText = hours === 1 ? t('hour') : `${hours} ${t('hours')}`;
+                        return `${hoursText} ${t('and')}-${remainingMinutes} ${t('minutes')}`;
+                    }
+                }
+            } else {
+                if (minutes < 60) {
+                    return `${minutes} ${t('minutes')}`;
+                } else {
+                    const hours = Math.floor(minutes / 60);
+                    const remainingMinutes = minutes % 60;
+
+                    if (remainingMinutes === 0) {
+                        return hours === 1 ? `1 ${t('hour')}` : `${hours} ${t('hours')}`;
+                    } else {
+                        const hoursText = hours === 1 ? `1 ${t('hour')}` : `${hours} ${t('hours')}`;
+                        return `${hoursText} ${t('and')} ${remainingMinutes} ${t('minutes')}`;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Validate phone number
+         * Accepts:
+         * - Israeli local format: 05X-XXXXXXX, 0X-XXXXXXX (landline)
+         * - Israeli international format: +972-XX-XXXXXXX or 972-XX-XXXXXXX
+         * - International numbers: +XX... (any number starting with + followed by digits)
+         * 
+         * For Israeli +972 format, converts to local format for validation
+         */
+        function isValidPhone(phone) {
+            // Remove all non-digit characters except leading +
+            let cleanPhone = phone.trim();
+            const hasPlus = cleanPhone.startsWith('+');
+            cleanPhone = cleanPhone.replace(/\D/g, '');
+
+            // Israeli +972 format: convert to local format (remove 972, add 0)
+            if (cleanPhone.startsWith('972') && cleanPhone.length >= 11) {
+                cleanPhone = '0' + cleanPhone.substring(3);
+            }
+
+            // Israeli local format validation
+            if (/^0[2-9]\d{7,8}$/.test(cleanPhone) || /^05\d{8}$/.test(cleanPhone)) {
+                return true;
+            }
+
+            // International format: starts with + and has at least 8 digits (excluding country code)
+            // Common international formats are 10-15 digits total
+            if (hasPlus && cleanPhone.length >= 8 && cleanPhone.length <= 15) {
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Validate email address
+         */
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        /**
+         * Show error message
+         */
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.add('show');
+        }
+
+        /**
+         * Clear all error messages
+         */
+        function clearErrors() {
+            const errorElements = document.querySelectorAll('.error-message');
+            errorElements.forEach(element => {
+                element.classList.remove('show');
+                element.textContent = '';
+            });
+        }
+
+        /**
+         * Navigate to a specific step
+         */
+        function goToStep(step) {
+            // Hide current step
+            document.getElementById(`step${currentStep}`).classList.add('hidden');
+
+            // Show new step
+            document.getElementById(`step${step}`).classList.remove('hidden');
+
+            // Update current step
+            currentStep = step;
+
+            // Handle step-specific logic
+            switch (step) {
+                case 3:
+                    loadTimeSlots();
+                    break;
+                case 4:
+                    populateConfirmation();
+                    break;
+            }
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        /**
+         * Initialize calendar
+         */
+        function initializeCalendar() {
+            currentMonth = new Date();
+            renderCalendar();
+        }
+
+        /**
+         * Change calendar month
+         */
+        function changeMonth(direction) {
+            currentMonth.setMonth(currentMonth.getMonth() + direction);
+            renderCalendar();
+        }
+
+        /**
+         * Render calendar for current month
+         */
+        function renderCalendar() {
+            const calendarTitle = document.getElementById('calendarTitle');
+            const calendarGrid = document.getElementById('calendarGrid');
+
+            // Set title according to language
+            const months = currentLanguage === 'he' ? hebrewMonths : englishMonths;
+            calendarTitle.textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+
+            // Clear grid
+            calendarGrid.innerHTML = '';
+
+            // Add day headers according to language
+            const days = currentLanguage === 'he' ? hebrewDays : englishDays;
+            days.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'calendar-day calendar-day-header';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+
+            // Get first day of month and number of days
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            // Add calendar days
+            for (let i = 0; i < 42; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = date.getDate();
+
+                // Check if date is in current month
+                if (date.getMonth() !== currentMonth.getMonth()) {
+                    dayElement.classList.add('disabled');
+                } else {
+                    // Check if date is in the past
+                    const today = new Date();
+                    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+                    if (dateOnly < todayDateOnly) {
+                        dayElement.classList.add('disabled');
+                    } else {
+                        // Check if it's a working day (Sunday-Thursday)
+                        const dayOfWeek = date.getDay();
+                        if (dayOfWeek === 5 || dayOfWeek === 6) { // Friday or Saturday
+                            dayElement.classList.add('disabled');
+                        } else {
+                            // Add click handler for valid dates
+                            dayElement.addEventListener('click', () => selectDate(date));
+
+                            // Check if it's today
+                            if (dateOnly.getTime() === todayDateOnly.getTime()) {
+                                dayElement.classList.add('today');
+                            }
+
+                            // Check if it's selected
+                            if (selectedDate && date.toDateString() === selectedDate.toDateString()) {
+                                dayElement.classList.add('selected');
+                            }
+                        }
+                    }
+                }
+
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        /**
+         * Select a date
+         */
+        function selectDate(date) {
+            selectedDate = new Date(date);
+
+            // Update calendar display
+            renderCalendar();
+
+            // Enable continue button
+            document.getElementById('continueToTime').disabled = false;
+
+            console.log('Date selected:', selectedDate);
+        }
+
+        /**
+         * Update selected date info according to current language
+         */
+        function updateSelectedDateInfo() {
+            const selectedDateInfo = document.getElementById('selectedDateInfo');
+            selectedDateInfo.textContent = `${t('selected-date')} ${formatDateInLanguage(selectedDate)}`;
+        }
+
+        /**
+         * Load available time slots for selected date
+         * 
+         * Enhanced with caching: First checks if slots are already cached from preloading.
+         * If cached, displays immediately. If not, pauses preloading and fetches immediately.
+         */
+        async function loadTimeSlots() {
+            if (!selectedDate) return;
+
+            // Update selected date info
+            updateSelectedDateInfo();
+
+            // Calculate duration
+            const people = parseInt(document.getElementById('numberOfPeople').value);
+            const baseDuration = config.baseDuration || 30;
+            const additionalDuration = config.additionalPersonDuration || 15;
+            const duration = baseDuration + ((people - 1) * additionalDuration);
+
+            // Format date correctly for Israel timezone
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
+            console.log('Selected date:', selectedDate.toDateString());
+            console.log('Date string for lookup:', dateStr);
+
+            // Check if we have cached availability for this date
+            if (availabilityCache[dateStr]) {
+                console.log(`Using cached availability for ${dateStr}`);
+                // Use cached data - calculate slots locally!
+                const timeSlots = calculateAvailableSlots(availabilityCache[dateStr], duration, selectedDate);
+                handleTimeSlotsLoaded(timeSlots);
+                return;
+            }
+
+            // Not in cache - need to load from server
+            console.log(`No cache for ${dateStr}, loading from server...`);
+
+            // Show loading indicator
+            document.getElementById('timeSlotsLoading').classList.remove('hidden');
+            document.getElementById('timeSlotsGrid').innerHTML = '';
+            document.getElementById('noSlotsMessage').classList.add('hidden');
+
+            // Pause background preloading to prioritize this request
+            pausePreloading();
+
+            try {
+                const response = await apiGet({
+                    action: 'getDailyAvailability',
+                    date: dateStr
+                });
+
+                if (response.success) {
+                    // Store in cache for future use
+                    availabilityCache[dateStr] = response; // Response contains { success: true, businessHours: ..., busySlots: ... } which is exactly what we need (minus success prop but that's fine)
+                    // actually response spread into availability object in server: return createJsonResponse({ success: true, ...availability });
+                    // so response IS the availability object (plus success: true).
+
+                    console.log(`Loaded and cached availability for ${dateStr}`);
+                    const timeSlots = calculateAvailableSlots(response, duration, selectedDate);
+                    handleTimeSlotsLoaded(timeSlots);
+                } else {
+                    handleTimeSlotsError(response.message);
+                }
+            } catch (error) {
+                handleTimeSlotsError(error);
+            }
+
+            // Resume background preloading
+            resumePreloading();
+        }
+
+        /**
+         * Handle time slots loaded from server
+         */
+        function handleTimeSlotsLoaded(timeSlots) {
+            // Hide loading
+            document.getElementById('timeSlotsLoading').classList.add('hidden');
+
+            const timeSlotsGrid = document.getElementById('timeSlotsGrid');
+            const noSlotsMessage = document.getElementById('noSlotsMessage');
+
+            // Always clear previous slots and messages first to prevent stale data
+            // from a previously viewed date remaining visible
+            timeSlotsGrid.innerHTML = '';
+            noSlotsMessage.classList.add('hidden');
+
+            if (timeSlots.length === 0) {
+                noSlotsMessage.classList.remove('hidden');
+                return;
+            }
+
+            // Add time slots
+            timeSlots.forEach(slot => {
+                const slotElement = document.createElement('div');
+                slotElement.className = 'time-slot';
+                slotElement.innerHTML = `
+            <div class="time-slot-time">${slot.start} - ${slot.end}</div>
+        `;
+
+                slotElement.addEventListener('click', () => selectTimeSlot(slot, slotElement));
+
+                timeSlotsGrid.appendChild(slotElement);
+            });
+        }
+
+        /**
+         * Handle time slots loading error
+         */
+        function handleTimeSlotsError(error) {
+            document.getElementById('timeSlotsLoading').classList.add('hidden');
+            document.getElementById('noSlotsMessage').classList.remove('hidden');
+            console.error('Error loading time slots:', error);
+        }
+
+        /**
+         * Select a time slot
+         */
+        function selectTimeSlot(slot, element) {
+            selectedTimeSlot = slot;
+
+            // Update UI
+            document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Enable continue button
+            document.getElementById('continueToConfirm').disabled = false;
+
+            console.log('Time slot selected:', slot);
+        }
+
+        /**
+         * Populate confirmation details
+         */
+        function populateConfirmation() {
+            const name = document.getElementById('clientName').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const email = document.getElementById('clientEmail').value.trim();
+            const people = parseInt(document.getElementById('numberOfPeople').value);
+
+            // Calculate duration
+            const baseDuration = config.baseDuration || 30;
+            const additionalDuration = config.additionalPersonDuration || 15;
+            const duration = baseDuration + ((people - 1) * additionalDuration);
+
+            // Format duration in current language
+            const durationText = formatDurationInLanguage(duration);
+
+            // Format people count in current language
+            const peopleText = currentLanguage === 'he'
+                ? (people === 1 ? `משתתפת 1` : `${people} ${t('participants')}`)
+                : `${people} ${people === 1 ? t('participant') : t('participants')}`;
+
+            // Update confirmation fields
+            document.getElementById('confirmName').textContent = name;
+            document.getElementById('confirmPhone').textContent = phone;
+            document.getElementById('confirmEmail').textContent = email;
+            document.getElementById('confirmPeople').textContent = peopleText;
+            document.getElementById('confirmDate').textContent = formatDateInLanguage(selectedDate);
+            document.getElementById('confirmTime').textContent = `${selectedTimeSlot.start} - ${selectedTimeSlot.end}`;
+            document.getElementById('confirmDuration').textContent = durationText;
+
+            // Show/hide phone and email rows depending on whether they exist
+            // (During reschedule, these come from the token – always available;
+            //  but if somehow empty, hide the row rather than showing an empty line)
+            const phoneRow = document.getElementById('confirmPhone').closest('.confirmation-item');
+            const emailRow = document.getElementById('confirmEmail').closest('.confirmation-item');
+            if (phoneRow) phoneRow.style.display = phone ? '' : 'none';
+            if (emailRow) emailRow.style.display = email ? '' : 'none';
+
+            // Update confirm button text for reschedule mode
+            const confirmBtn = document.getElementById('confirmBooking');
+            if (isRescheduling) {
+                confirmBtn.querySelector('span').textContent = t('confirm-booking-reschedule');
+            } else {
+                confirmBtn.querySelector('span').textContent = t('confirm-booking');
+            }
+
+            // Store appointment data with language preference
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
+            appointmentData = {
+                name: name,
+                phone: phone,
+                email: email,
+                numberOfPeople: people,
+                selectedSlot: selectedTimeSlot,
+                date: dateStr,
+                language: currentLanguage
+            };
+        }
+
+        /**
+         * Confirm and book the appointment
+         */
+        async function confirmBooking() {
+            // Show loading overlay
+            const loadingP = document.getElementById('loadingOverlay').querySelector('p');
+            loadingP.textContent = t('booking-progress');
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+
+            try {
+                if (isRescheduling && manageToken) {
+                    // Reschedule mode: call rescheduleAppointment instead of bookAppointment
+                    loadingP.textContent = t('reschedule-progress');
+                    // Pass newSlot as raw JSON string; apiGet (URLSearchParams) will encode it
+                    const rescheduleParams = {
+                        action: 'rescheduleAppointment',
+                        token: manageToken,
+                        newDate: appointmentData.date,
+                        newSlot: JSON.stringify(appointmentData.selectedSlot)
+                    };
+                    // Include people count so the backend can recalculate duration
+                    if (appointmentData.numberOfPeople) {
+                        rescheduleParams.newPeople = String(appointmentData.numberOfPeople);
+                    }
+                    const response = await apiGet(rescheduleParams);
+                    handleRescheduleSuccess(response);
+                } else {
+                    // Normal booking
+                    const response = await apiPost({
+                        action: 'bookAppointment',
+                        appointmentData: appointmentData
+                    });
+                    handleBookingSuccess(response);
+                }
+            } catch (error) {
+                handleBookingError(error);
+            }
+        }
+
+        /**
+         * Handle successful reschedule response
+         */
+        function handleRescheduleSuccess(result) {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+
+            if (result && result.slotTaken) {
+                const msg = currentLanguage === 'he'
+                    ? 'השעה שבחרת נתפסה. אנא בחרי שעה אחרת.'
+                    : 'The time slot you selected has been taken. Please choose another time.';
+                alert(msg);
+                clearAllCache();
+                selectedTimeSlot = null;
+                document.getElementById('continueToConfirm').disabled = true;
+                goToStep(2);
+                startPreloading();
+                return;
+            }
+
+            if (result && result.success) {
+                calendarLink = result.calendarLink;
+                isRescheduling = false;
+                manageToken = null;
+                manageAppointment = null;
+
+                // Show the regular success screen with reschedule success title
+                goToStep('success');
+                document.querySelector('#successStep .success-title').textContent = t('reschedule-success-title');
+                document.querySelector('#successStep .success-subtitle').textContent = t('reschedule-success-subtitle');
+
+                const successDetails = document.getElementById('successDetails');
+                const addressText = currentLanguage === 'he' ? (config.businessAddressHe || '') : (config.businessAddressEn || '');
+                successDetails.innerHTML = `
+                    <div class="confirmation-item"><span class="confirmation-label">${t('confirm-name')}</span><span class="confirmation-value">${appointmentData.name}</span></div>
+                    <div class="confirmation-item"><span class="confirmation-label">${t('confirm-date')}</span><span class="confirmation-value">${formatDateInLanguage(selectedDate)}</span></div>
+                    <div class="confirmation-item"><span class="confirmation-label">${t('confirm-time')}</span><span class="confirmation-value">${selectedTimeSlot.start} - ${selectedTimeSlot.end}</span></div>
+                    <div class="confirmation-item"><span class="confirmation-label">${t('confirm-duration')}</span><span class="confirmation-value">${formatDurationInLanguage(result.duration)}</span></div>
+                    <div class="confirmation-item"><span class="confirmation-label">${t('confirm-address')}</span><span class="confirmation-value">${addressText}</span></div>
+                `;
+            } else {
+                alert((result && result.message) || t('error-api'));
+            }
+        }
+
+        /**
+         * Handle successful booking
+         * Also handles the case where the slot was taken between selection and confirmation
+         */
+        function handleBookingSuccess(result) {
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').classList.add('hidden');
+
+            // Check if slot was taken before booking could complete
+            if (result && result.slotTaken === true) {
+                // The selected time slot was taken by someone else
+                console.log('Slot was taken before booking could complete');
+
+                const errorMsg = currentLanguage === 'he'
+                    ? result.message || 'השעה שבחרת נתפסה בינתיים. אנא בחרי שעה אחרת.'
+                    : 'The time slot you selected has been taken. Please choose another time.';
+
+                alert(errorMsg);
+
+                // Clear cache for this date to ensure fresh data
+                clearCacheForDate(appointmentData.date);
+
+                // Clear cache for all dates to be safe (slots might have changed)
+                clearAllCache();
+
+                // Reset time slot selection
+                selectedTimeSlot = null;
+                document.getElementById('continueToConfirm').disabled = true;
+
+                // Go back to step 2 (date selection)
+                goToStep(2);
+
+                // Restart preloading to get fresh data
+                startPreloading();
+
+                return;
+            }
+
+            if (result && result.success === true && result.eventId) {
+                // Store calendar link
+                calendarLink = result.calendarLink;
+
+                // Show success step
+                goToStep('success');
+
+                // Update success details in current language
+                const successDetails = document.getElementById('successDetails');
+                const addressText = currentLanguage === 'he'
+                    ? (config.businessAddressHe || '')
+                    : (config.businessAddressEn || '');
+
+                successDetails.innerHTML = `
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-name')}</span>
+                <span class="confirmation-value">${appointmentData.name}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-date')}</span>
+                <span class="confirmation-value">${formatDateInLanguage(selectedDate)}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-time')}</span>
+                <span class="confirmation-value">${selectedTimeSlot.start} - ${selectedTimeSlot.end}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-duration')}</span>
+                <span class="confirmation-value">${formatDurationInLanguage(result.duration)}</span>
+            </div>
+            <div class="confirmation-item">
+                <span class="confirmation-label">${t('confirm-address')}</span>
+                <span class="confirmation-value">${addressText}</span>
+            </div>
+        `;
+
+                // Show success step
+                document.getElementById('step4').classList.add('hidden');
+                document.getElementById('successStep').classList.remove('hidden');
+
+            } else {
+                const errorMsg = currentLanguage === 'he'
+                    ? 'שגיאה בקביעת הפגישה: ' + result.message
+                    : 'Error booking appointment: ' + result.message;
+                alert(errorMsg);
+            }
+        }
+
+        /**
+         * Handle booking error
+         */
+        function handleBookingError(error) {
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').classList.add('hidden');
+
+            const errorMsg = currentLanguage === 'he'
+                ? 'שגיאה בקביעת הפגישה. אנא נסי שוב.'
+                : 'Error booking appointment. Please try again.';
+            alert(errorMsg);
+            console.error('Booking error:', error);
+        }
+
+        /**
+         * Add appointment to client's calendar
+         */
+        function addToCalendar() {
+            if (calendarLink) {
+                window.open(calendarLink, '_blank');
+            } else {
+                const errorMsg = currentLanguage === 'he'
+                    ? 'שגיאה ביצירת קישור ליומן'
+                    : 'Error creating calendar link';
+                alert(errorMsg);
+            }
+        }
+
+        /**
+         * Reset form to start over
+         */
+        function resetForm() {
+            // Reset variables
+            currentStep = 1;
+            selectedDate = null;
+            selectedTimeSlot = null;
+            appointmentData = {};
+            calendarLink = null;
+            manageToken = null;
+            manageAppointment = null;
+            otpEmailValue = '';
+            isRescheduling = false;
+
+            // Clear time slots cache and restart preloading for fresh data
+            clearAllCache();
+
+            // Reset form fields
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientPhone').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('numberOfPeople').value = '';
+            document.getElementById('durationInfo').classList.remove('show');
+
+            // Reset buttons
+            document.getElementById('continueToDate').disabled = true;
+            document.getElementById('continueToTime').disabled = true;
+            document.getElementById('continueToConfirm').disabled = true;
+
+            // Clear errors
+            clearErrors();
+
+            // Show first step
+            document.querySelectorAll('.step-container').forEach(step => step.classList.add('hidden'));
+            document.getElementById('step1').classList.remove('hidden');
+
+            // Reset calendar
+            currentMonth = new Date();
+            renderCalendar();
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+
+            // Hide reschedule-specific UI
+            document.getElementById('reschedulePeopleSelector').classList.add('hidden');
+
+            // Clean up URL params (remove ?action=manage&token=... from address bar)
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // Restart preloading for fresh data
+            startPreloading();
+        }
+
+        // =====================================================================
+        // APPOINTMENT MANAGEMENT FUNCTIONS
+        // =====================================================================
+
+        /**
+         * Shows a single step panel (hides all others).
+         */
+        function showStep(stepId) {
+            document.querySelectorAll('.step-container').forEach(el => el.classList.add('hidden'));
+            const el = document.getElementById(stepId);
+            if (el) {
+                el.classList.remove('hidden');
+                window.scrollTo(0, 0);
+            }
+        }
+
+        /**
+         * Handles opening the page via a management token link (?action=manage&token=xxx).
+         * Fetches appointment details, applies the stored language, and shows the manage screen.
+         */
+        async function handleTokenManageLink(token) {
+            // Show loading state
+            showStep('step1'); // keep step1 visible as fallback
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingOverlay').querySelector('p').setAttribute('data-translate', 'manage-loading');
+            document.getElementById('loadingOverlay').querySelector('p').textContent = t('manage-loading');
+
+            try {
+                const result = await apiGet({ action: 'getAppointmentByToken', token: token });
+                document.getElementById('loadingOverlay').classList.add('hidden');
+
+                if (!result.success) {
+                    const msg = result.expired ? t('manage-expired') : t('manage-invalid-token');
+                    alert(msg);
+                    showStep('step1');
+                    return;
+                }
+
+                // Apply the language stored with the appointment
+                const apptLang = result.appointmentDetails.language || 'he';
+                currentLanguage = apptLang;
+                applyLanguage(currentLanguage);
+
+                // Store state and show manage screen
+                manageToken = token;
+                manageAppointment = result.appointmentDetails;
+                renderManageScreen(manageAppointment);
+                showStep('manageStep');
+            } catch (err) {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                console.error('handleTokenManageLink error:', err);
+                alert(t('error-api'));
+                showStep('step1');
+            }
+        }
+
+        /**
+         * Renders the manage screen with the appointment details card.
+         */
+        function renderManageScreen(appt) {
+            const start = new Date(appt.startTimeIso);
+            const end = new Date(appt.endTimeIso);
+            const lang = currentLanguage;
+
+            const dateStr = lang === 'he'
+                ? (() => {
+                    const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+                    return `יום ${days[start.getDay()]}, ${start.getDate()} ב${hebrewMonths[start.getMonth()]} ${start.getFullYear()}`;
+                })()
+                : (() => {
+                    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                    return `${days[start.getDay()]}, ${englishMonths[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`;
+                })();
+
+            const startStr = `${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}`;
+            const endStr   = `${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}`;
+
+            // Format: 1 participant = "משתתפת 1" (Hebrew), "1 participant" (English); 2+ = "3 משתתפות" / "3 participants"
+            const peopleText = lang === 'he'
+                ? (appt.numberOfPeople === 1 ? 'משתתפת 1' : appt.numberOfPeople + ' ' + t('participants'))
+                : appt.numberOfPeople + ' ' + (appt.numberOfPeople === 1 ? t('participant') : t('participants'));
+
+            const detailsEl = document.getElementById('manageAppointmentDetails');
+            detailsEl.innerHTML = `
+                <div class="confirmation-item"><span class="confirmation-label">${t('confirm-name')}</span><span class="confirmation-value">${appt.clientName}</span></div>
+                <div class="confirmation-item"><span class="confirmation-label">${t('confirm-date')}</span><span class="confirmation-value">${dateStr}</span></div>
+                <div class="confirmation-item"><span class="confirmation-label">${t('confirm-time')}</span><span class="confirmation-value">${startStr} - ${endStr}</span></div>
+                <div class="confirmation-item"><span class="confirmation-label">${t('confirm-duration')}</span><span class="confirmation-value">${formatDurationInLanguage(appt.duration)}</span></div>
+                <div class="confirmation-item"><span class="confirmation-label">${t('confirm-people')}</span><span class="confirmation-value">${peopleText}</span></div>
+            `;
+
+            // Also populate cancel confirm details
+            document.getElementById('cancelConfirmDetails').innerHTML = detailsEl.innerHTML;
+        }
+
+        /**
+         * Handles "send OTP" button – validates email then calls backend sendOTP.
+         */
+        async function handleSendOtp() {
+            const emailInput = document.getElementById('otpEmail');
+            const emailErr   = document.getElementById('otpEmailError');
+            const email = emailInput.value.trim();
+            emailErr.classList.remove('show');
+
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                emailErr.textContent = t('error-email-invalid');
+                emailErr.classList.add('show');
+                return;
+            }
+
+            otpEmailValue = email;
+            document.getElementById('sendOtpBtn').disabled = true;
+
+            try {
+                const result = await apiGet({ action: 'sendOTP', email: email, lang: currentLanguage });
+                if (result.success) {
+                    showStep('otpVerifyStep');
+                } else {
+                    alert(result.message || t('error-api'));
+                }
+            } catch (err) {
+                alert(t('error-api'));
+            } finally {
+                document.getElementById('sendOtpBtn').disabled = false;
+            }
+        }
+
+        /**
+         * Handles "verify OTP" button – validates code then fetches appointments.
+         */
+        async function handleVerifyOtp() {
+            const codeInput = document.getElementById('otpCode');
+            const codeErr   = document.getElementById('otpCodeError');
+            const code = codeInput.value.trim();
+            codeErr.classList.remove('show');
+
+            if (!code || !/^\d{6}$/.test(code)) {
+                codeErr.textContent = currentLanguage === 'he' ? 'הקוד חייב להיות 6 ספרות.' : 'Code must be 6 digits.';
+                codeErr.classList.add('show');
+                return;
+            }
+
+            document.getElementById('verifyOtpBtn').disabled = true;
+
+            try {
+                const result = await apiGet({ action: 'verifyOTPAndGetAppointments', email: otpEmailValue, code: code });
+
+                if (!result.success) {
+                    if (result.expired) {
+                        codeErr.textContent = currentLanguage === 'he' ? 'הקוד פג תוקף. אנא בקשי קוד חדש.' : 'Code expired. Please request a new code.';
+                    } else {
+                        codeErr.textContent = result.message || (currentLanguage === 'he' ? 'קוד שגוי.' : 'Incorrect code.');
+                    }
+                    codeErr.classList.add('show');
+                    return;
+                }
+
+                const appointments = result.appointments || [];
+                if (appointments.length === 0) {
+                    const msg = currentLanguage === 'he' ? 'לא נמצאו פגישות עתידיות עבור מייל זה.' : 'No upcoming appointments found for this email.';
+                    alert(msg);
+                    showStep('otpRequestStep');
+                    return;
+                }
+
+                if (appointments.length === 1) {
+                    // Single appointment – go directly to manage screen
+                    manageToken = appointments[0].token;
+                    manageAppointment = appointments[0];
+                    renderManageScreen(manageAppointment);
+                    showStep('manageStep');
+                } else {
+                    // Multiple appointments – show list
+                    renderAppointmentList(appointments);
+                    showStep('appointmentListStep');
+                }
+                // Clear OTP input
+                codeInput.value = '';
+            } catch (err) {
+                alert(t('error-api'));
+            } finally {
+                document.getElementById('verifyOtpBtn').disabled = false;
+            }
+        }
+
+        /**
+         * Renders the list of appointments (for OTP flow with multiple results).
+         */
+        function renderAppointmentList(appointments) {
+            const container = document.getElementById('appointmentListContainer');
+            container.innerHTML = '';
+            appointments.forEach(appt => {
+                const start = new Date(appt.startTimeIso);
+                const lang = currentLanguage;
+                const dateStr = lang === 'he'
+                    ? `יום ${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][start.getDay()]}, ${start.getDate()} ב${hebrewMonths[start.getMonth()]} ${start.getFullYear()}`
+                    : `${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][start.getDay()]}, ${englishMonths[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`;
+                const timeStr = `${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}`;
+
+                const item = document.createElement('div');
+                item.className = 'appt-list-item';
+                const peopleText = (currentLanguage === 'he' ? (appt.numberOfPeople === 1 ? 'משתתפת 1' : appt.numberOfPeople + ' ' + t('participants')) : appt.numberOfPeople + ' ' + (appt.numberOfPeople === 1 ? t('participant') : t('participants')));
+                item.innerHTML = `<h4>${dateStr}</h4><p>${timeStr} &bull; ${peopleText}</p>`;
+                item.addEventListener('click', () => {
+                    manageToken = appt.token;
+                    manageAppointment = appt;
+                    renderManageScreen(appt);
+                    showStep('manageStep');
+                });
+                container.appendChild(item);
+            });
+        }
+
+        /**
+         * Handles "reschedule" button click – loads appointment data into the booking flow
+         * and jumps to step 2 (date selection), but in reschedule mode.
+         */
+        function handleRescheduleClick() {
+            if (!manageAppointment) return;
+            // Pre-fill personal details from the stored appointment
+            document.getElementById('clientName').value  = manageAppointment.clientName || '';
+            document.getElementById('clientPhone').value = manageAppointment.clientPhone || '';
+            document.getElementById('clientEmail').value = manageAppointment.clientEmail || '';
+            document.getElementById('numberOfPeople').value = String(manageAppointment.numberOfPeople);
+            // Trigger people change to compute duration and enable calendar
+            handlePeopleChange();
+            // Mark the form as valid so the calendar step is reachable
+            document.getElementById('continueToDate').disabled = false;
+            // Switch to reschedule mode
+            isRescheduling = true;
+            // Sync currentStep so goToStep(3) can hide step2 correctly
+            currentStep = 2;
+            // Show the inline people selector for reschedule
+            showReschedulePeopleSelector();
+            // Go to step 2 (date/time selection)
+            showStep('step2');
+            renderCalendar();
+        }
+
+        /**
+         * Shows the inline people selector in step 2 during reschedule,
+         * pre-selecting the current number of people.
+         */
+        function showReschedulePeopleSelector() {
+            const selector = document.getElementById('reschedulePeopleSelector');
+            const select = document.getElementById('reschedulePeopleCount');
+            select.value = String(manageAppointment.numberOfPeople);
+            selector.classList.remove('hidden');
+            // Show the duration for the current selection
+            updateRescheduleDurationInfo();
+        }
+
+        /**
+         * Handles a change in the inline people selector during reschedule.
+         * Updates the hidden step-1 select and recomputes duration / refreshes time slots cache.
+         */
+        function handleReschedulePeopleChange() {
+            const newPeople = parseInt(document.getElementById('reschedulePeopleCount').value);
+            document.getElementById('numberOfPeople').value = String(newPeople);
+            handlePeopleChange(); // recalculates duration, clears cache, etc.
+            updateRescheduleDurationInfo();
+            // If a date is already selected, reload slots for the new duration
+            if (selectedDate) {
+                clearAllCache();
+                startPreloading();
+            }
+        }
+
+        /**
+         * Updates the duration info text inside the reschedule people selector.
+         */
+        function updateRescheduleDurationInfo() {
+            const people = parseInt(document.getElementById('reschedulePeopleCount').value);
+            const baseDuration = config.baseDuration || 30;
+            const additionalDuration = config.additionalPersonDuration || 15;
+            const totalDuration = baseDuration + ((people - 1) * additionalDuration);
+            const durationText = formatDurationInLanguage(totalDuration);
+            const label = t('duration-text');
+            document.getElementById('rescheduleDurationInfo').textContent = `${label} ${durationText}`;
+        }
+
+        /**
+         * Handles "cancel appointment" button click – shows cancel confirmation screen.
+         */
+        function handleCancelClick() {
+            showStep('cancelConfirmStep');
+        }
+
+        /**
+         * Performs the actual cancellation after confirmation.
+         */
+        async function performCancel() {
+            if (!manageToken) return;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingOverlay').querySelector('p').textContent = t('cancel-progress');
+
+            try {
+                const result = await apiGet({ action: 'cancelAppointment', token: manageToken });
+                document.getElementById('loadingOverlay').classList.add('hidden');
+
+                if (result.success) {
+                    manageToken = null;
+                    manageAppointment = null;
+                    showStep('cancelSuccessStep');
+                    applyLanguage(currentLanguage);
+                } else {
+                    alert(result.message || t('error-api'));
+                    showStep('manageStep');
+                }
+            } catch (err) {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                alert(t('error-api'));
+                showStep('manageStep');
+            }
+        }
+
+        // =====================================================================
+        // END APPOINTMENT MANAGEMENT FUNCTIONS
+        // =====================================================================
+
+        /**
+         * Format date according to current language
+         */
+        function formatDateInLanguage(date) {
+            if (currentLanguage === 'he') {
+                const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+                const dayName = days[date.getDay()];
+                const day = date.getDate();
+                const month = hebrewMonths[date.getMonth()];
+                const year = date.getFullYear();
+
+                return `יום ${dayName}, ${day} ב${month} ${year}`;
+            } else {
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayName = days[date.getDay()];
+                const day = date.getDate();
+                const month = englishMonths[date.getMonth()];
+                const year = date.getFullYear();
+
+                return `${dayName}, ${month} ${day}, ${year}`;
+            }
+        }
+
+        /**
+         * Handle general errors
+         */
+        function handleError(error) {
+            console.error('Error:', error);
+            const errorMsg = currentLanguage === 'he'
+                ? 'אירעה שגיאה. אנא נסי שוב.'
+                : 'An error occurred. Please try again.';
+            alert(errorMsg);
+        }
+
+        // Utility function to go to success step
+        function goToSuccessStep() {
+            document.querySelectorAll('.step-container').forEach(step => step.classList.add('hidden'));
+            document.getElementById('successStep').classList.remove('hidden');
+        }
+
+        // Make goToStep function work with success step
+        const originalGoToStep = goToStep;
+        goToStep = function (step) {
+            if (step === 'success') {
+                goToSuccessStep();
+            } else {
+                originalGoToStep(step);
+            }
+        };
+
+        // ============================================================================
+        // CLIENT-SIDE SLOT CALCULATION
+        // ============================================================================
+
+        /**
+         * Calculates available time slots based on availability data and duration
+         * 
+         * @param {Object} availability - { businessHours, busySlots }
+         * @param {number} duration - Duration in minutes
+         * @param {Date} date - Selected date object
+         * @return {Array} Array of time slots { start, end, startDateTime, endDateTime }
+         */
+        function calculateAvailableSlots(availability, duration, date) {
+            if (!availability || !availability.businessHours) {
+                return [];
+            }
+
+            const { businessHours, busySlots } = availability;
+            const timeSlots = [];
+            const interval = config.timeSlotInterval || 15;
+
+            // Helper to process a period (morning, evening)
+            const processPeriod = (startStr, endStr) => {
+                if (!startStr || !endStr) return;
+
+                const startMinutes = timeToMinutes(startStr);
+                const endMinutes = timeToMinutes(endStr);
+
+                // Use a loop to check every slot
+                for (let current = startMinutes; current + duration <= endMinutes; current += interval) {
+                    const slotStartMinutes = current;
+                    const slotEndMinutes = current + duration;
+
+                    // Check if this slot overlaps with any busy slot
+                    const isBlocked = busySlots.some(busy => {
+                        const busyStart = new Date(busy.start);
+                        const busyEnd = new Date(busy.end);
+
+                        // Convert busy times to minutes since midnight for today
+                        // Note: busySlots from server are full ISO strings
+                        const busyStartMinutes = (busyStart.getHours() * 60) + busyStart.getMinutes();
+                        const busyEndMinutes = (busyEnd.getHours() * 60) + busyEnd.getMinutes();
+
+                        // Simple overlap check: (StartA < EndB) && (EndA > StartB)
+                        return (slotStartMinutes < busyEndMinutes) && (slotEndMinutes > busyStartMinutes);
+                    });
+
+                    // Specific check for "today" - filter out past slots + 3 hours buffer
+                    const now = new Date();
+                    const isToday = date.toDateString() === now.toDateString();
+                    if (isToday) {
+                        const slotStartTime = new Date(date);
+                        slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+
+                        const threeHoursFromNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+                        if (slotStartTime <= threeHoursFromNow) {
+                            return;
+                        }
+                    }
+
+                    if (!isBlocked) {
+                        // Formatting
+                        const startH = Math.floor(slotStartMinutes / 60);
+                        const startM = slotStartMinutes % 60;
+                        const endH = Math.floor(slotEndMinutes / 60);
+                        const endM = slotEndMinutes % 60;
+
+                        const format = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                        // Create Date objects for ISO strings
+                        const slotStartDate = new Date(date);
+                        slotStartDate.setHours(startH, startM, 0, 0);
+                        const slotEndDate = new Date(date);
+                        slotEndDate.setHours(endH, endM, 0, 0);
+
+                        timeSlots.push({
+                            start: format(startH, startM),
+                            end: format(endH, endM),
+                            startDateTime: slotStartDate.toISOString(),
+                            endDateTime: slotEndDate.toISOString()
+                        });
+                    }
+                }
+            };
+
+            // Process morning
+            processPeriod(businessHours.start, businessHours.end);
+
+            // Process evening if exists
+            if (businessHours.evening) {
+                processPeriod(businessHours.evening.start, businessHours.evening.end);
+            }
+
+            return timeSlots;
+        }
+
+        /**
+         * Convert "HH:MM" string to minutes since midnight
+         */
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return (hours * 60) + minutes;
+        }
+
+        // Clean implementation (fix for loop/return issue)
+        function calculateAvailableSlotsClean(availability, duration, date) {
+            if (!availability || !availability.businessHours) {
+                return [];
+            }
+
+            const { businessHours, busySlots } = availability;
+            const timeSlots = [];
+            const interval = config.timeSlotInterval || 15; // 15 minutes default
+
+            const periods = [];
+            periods.push({ start: businessHours.start, end: businessHours.end });
+            if (businessHours.evening) {
+                periods.push({ start: businessHours.evening.start, end: businessHours.evening.end });
+            }
+
+            const now = new Date();
+            const isToday = date.toDateString() === now.toDateString();
+
+            periods.forEach(period => {
+                if (!period.start || !period.end) return;
+
+                const startMinutes = timeToMinutes(period.start);
+                const endMinutes = timeToMinutes(period.end);
+
+                for (let current = startMinutes; current + duration <= endMinutes; current += interval) {
+                    const slotStartMinutes = current;
+                    const slotEndMinutes = current + duration;
+
+                    // Check past/buffer for today
+                    if (isToday) {
+                        const slotStartTime = new Date(date);
+                        slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+                        const threeHoursFromNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+
+                        if (slotStartTime <= threeHoursFromNow) {
+                            continue;
+                        }
+                    }
+
+                    // Overlap check
+                    const isBlocked = busySlots.some(busy => {
+                        const busyStart = new Date(busy.start);
+                        const busyEnd = new Date(busy.end);
+
+                        // To compare accurately, we should compare full Date objects
+                        const slotStartTime = new Date(date);
+                        slotStartTime.setHours(Math.floor(slotStartMinutes / 60), slotStartMinutes % 60, 0, 0);
+
+                        const slotEndTime = new Date(date);
+                        slotEndTime.setHours(Math.floor(slotEndMinutes / 60), slotEndMinutes % 60, 0, 0);
+
+                        return (slotStartTime < busyEnd) && (slotEndTime > busyStart);
+                    });
+
+                    if (!isBlocked) {
+                        const startH = Math.floor(slotStartMinutes / 60);
+                        const startM = slotStartMinutes % 60;
+                        const endH = Math.floor(slotEndMinutes / 60);
+                        const endM = slotEndMinutes % 60;
+
+                        const format = (h, m) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                        const slotStartTime = new Date(date);
+                        slotStartTime.setHours(startH, startM, 0, 0);
+                        const slotEndTime = new Date(date);
+                        slotEndTime.setHours(endH, endM, 0, 0);
+
+                        timeSlots.push({
+                            start: format(startH, startM),
+                            end: format(endH, endM),
+                            startDateTime: slotStartTime.toISOString(),
+                            endDateTime: slotEndTime.toISOString()
+                        });
+                    }
+                }
+            });
+
+            return timeSlots;
+        }
+
+        // Map the clean function to the real name
+        calculateAvailableSlots = calculateAvailableSlotsClean;
+
+        // ============================================================================
+        // PRE-LOADING FUNCTIONS
+        // These functions handle background loading of time slots to improve UX
+        // ============================================================================
+
+        /**
+         * Starts the background preloading of time slots for the next 30 days
+         * 
+         * Purpose: Load available time slots in the background while the client is
+         * filling out the form on step 1. This way, when they reach step 3 (time selection),
+         * the slots are already cached and display instantly.
+         * 
+         * Method: Builds a queue of working days (Sunday-Thursday) for the next 30 days
+         * and starts loading them one by one in the background.
+         */
+        function startPreloading() {
+            console.log('Starting preload of time slots...');
+
+            // Build queue of dates to preload (next 30 working days)
+            preloadQueue = [];
+            const today = new Date();
+            let daysAdded = 0;
+            let currentDate = new Date(today);
+
+            while (daysAdded < 30) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                const dayOfWeek = currentDate.getDay();
+
+                // Only add working days (Sunday=0 to Thursday=4)
+                // Skip Friday (5) and Saturday (6)
+                if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+
+                    preloadQueue.push(dateStr);
+                    daysAdded++;
+                }
+            }
+
+            console.log(`Preload queue built with ${preloadQueue.length} dates:`, preloadQueue.slice(0, 5), '...');
+
+            // Start preloading
+            isPreloading = true;
+            preloadPaused = false;
+            preloadNextDate();
+        }
+
+        /**
+         * Preloads the next date in the queue
+         * Called recursively to process the entire queue
+         */
+        async function preloadNextDate() {
+            // Check if we should stop
+            if (!isPreloading || preloadQueue.length === 0) {
+                console.log('Preloading completed or stopped');
+                isPreloading = false;
+                return;
+            }
+
+            // Check if paused (waiting for priority load)
+            if (preloadPaused) {
+                console.log('Preloading paused, waiting...');
+                return;
+            }
+
+            // Get next date from queue
+            currentPreloadDate = preloadQueue.shift();
+
+            // Skip if already cached
+            if (availabilityCache[currentPreloadDate]) {
+                console.log(`Date ${currentPreloadDate} already cached, skipping`);
+                preloadNextDate();
+                return;
+            }
+
+            console.log(`Preloading availability for date: ${currentPreloadDate}`);
+
+            try {
+                const response = await apiGet({
+                    action: 'getDailyAvailability',
+                    date: currentPreloadDate
+                });
+
+                if (response.success) {
+                    // Store in cache
+                    availabilityCache[currentPreloadDate] = response;
+                    console.log(`Cached availability for ${currentPreloadDate}`);
+                }
+            } catch (error) {
+                console.error(`Failed to preload ${currentPreloadDate}:`, error);
+            }
+
+            // Continue with next date (with small delay to not overload server)
+            setTimeout(preloadNextDate, 100);
+        }
+
+        /**
+         * Pauses the preloading process
+         * Called when user reaches step 3 and needs immediate loading of selected date
+         */
+        function pausePreloading() {
+            preloadPaused = true;
+            console.log('Preloading paused');
+        }
+
+        /**
+         * Resumes the preloading process
+         * Called after priority load is complete
+         */
+        function resumePreloading() {
+            if (isPreloading && preloadPaused) {
+                preloadPaused = false;
+                console.log('Preloading resumed');
+                preloadNextDate();
+            }
+        }
+
+        /**
+         * Clears the cache for a specific date
+         * Called when a slot was taken to ensure fresh data
+         * 
+         * @param {string} dateStr - Date string in YYYY-MM-DD format
+         */
+        /**
+         * Clears the cache for a specific date
+         * Called when a slot was taken to ensure fresh data
+         * 
+         * @param {string} dateStr - Date string in YYYY-MM-DD format
+         */
+        function clearCacheForDate(dateStr) {
+            if (availabilityCache[dateStr]) {
+                delete availabilityCache[dateStr];
+                console.log(`Cache cleared for ${dateStr}`);
+            }
+        }
+
+        /**
+         * Clears the entire time slots cache
+         * Called when resetting the form or when data might be stale
+         */
+        function clearAllCache() {
+            availabilityCache = {};
+            console.log('All cache cleared');
+        }
+    </script>
+</body>
+
+</html>
